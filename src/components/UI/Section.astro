@@ -1,0 +1,26 @@
+---
+interface Props {
+  background?: "stone" | "white" | string;
+  class?: string; 
+}
+
+const { background = "stone", class: className } = Astro.props;
+
+// Map the simple names to the actual Tailwind classes
+const bgMap: Record<string, string> = {
+  stone: "bg-stone-50",
+  white: "bg-white"
+};
+
+// Use the mapped class, or fall back to the string if it's a custom class
+const bgClass = bgMap[background] || background;
+---
+
+<section class:list={["py-18", bgClass]}>
+  <div class:list={[
+    "container mx-auto px-6",
+    className 
+  ]}>
+    <slot />
+  </div>
+</section>

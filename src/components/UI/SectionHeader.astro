@@ -1,0 +1,22 @@
+---
+interface Props {
+  tagline: string;
+  title: string;
+  class?: string;
+}
+
+const { tagline, title, class: className } = Astro.props;
+---
+
+<div class:list={["text-center max-w-xl mx-auto mb-14", className]}>
+  <p class="text-sm tracking-[0.3em] uppercase text-brand-secondary mb-3">
+    {tagline}
+  </p>
+
+  <h2 class="font-headers text-4xl md:text-5xl mb-4 leading-tight">
+    {title}
+  </h2>
+
+  <div class="w-16 h-0.5 bg-brand-secondary mx-auto mb-6 rounded-full"></div>
+  <slot />
+</div>

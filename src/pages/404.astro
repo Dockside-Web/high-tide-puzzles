@@ -1,0 +1,15 @@
+---
+import Layout from "../layouts/Layout.astro";
+import PageHero from "../components/PageHero.astro";
+
+const pageTitle = "Page Not Found";
+const metaDescription = "This page doesn't exist.";
+---
+
+<Layout title={pageTitle} description={metaDescription}>
+  <PageHero
+    title="404 Error"
+    subtitle="This page doesn't exist."
+    tagline="ERROR"
+  />
+</Layout>

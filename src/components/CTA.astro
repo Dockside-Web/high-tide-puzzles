@@ -1,0 +1,66 @@
+---
+import Section from "./UI/Section.astro";
+import SectionHeader from "./UI/SectionHeader.astro";
+import Button from "./Button.astro";
+---
+
+<Section background="bg-stone-50">
+    <div
+        class="cta-container container mx-auto px-6 max-w-4xl text-center opacity-0 translate-y-8 transition-all duration-1000 ease-out"
+    >
+        <SectionHeader
+            title="Experience the best of Key West"
+            tagline="Ready to Escape?"
+        />
+
+        <p class="mb-10 max-w-2xl mx-auto leading-relaxed text-lg">
+            Whether you're looking for a seasonal retreat or a long-term
+            tropical getaway, Sweet Caroline Seaport offers the perfect blend of
+            historic charm and modern luxury.
+        </p>
+
+        <div
+            class="flex flex-col sm:flex-row items-center justify-center gap-5"
+        >
+            <Button href="/availability" variant="primary" size="md">
+                View Availability
+            </Button>
+
+            <Button href="/availability" variant="secondary" size="md">
+                Contact Us
+            </Button>
+        </div>
+
+        <p class="mt-10 text-xs text-gray-400 italic">
+            * 28-Night Minimum Stay Required
+        </p>
+    </div>
+</Section>
+
+<script>
+    const initCTA = () => {
+        const observerOptions = {
+            threshold: 0.2
+        };
+
+        const ctaObserver = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.remove("opacity-0", "translate-y-8");
+                    entry.target.classList.add("opacity-100", "translate-y-0");
+                    ctaObserver.unobserve(entry.target);
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll(".cta-container").forEach((el) => {
+            ctaObserver.observe(el);
+        });
+    };
+
+    // Runs on initial load
+    initCTA();
+
+    // Runs after client-side navigation (if using Astro View Transitions)
+    document.addEventListener("astro:after-swap", initCTA);
+</script>

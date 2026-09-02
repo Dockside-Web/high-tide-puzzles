@@ -1,0 +1,197 @@
+---
+import Button from "./Button.astro";
+
+const navLinks = [
+  { label: "Home", href: "/" },
+  { label: "About", href: "/about" },
+  { label: "Availability", href: "/availability" },
+  { label: "Photos", href: "/photos" },
+  { label: "Location", href: "/location" },
+  { label: "Contact", href: "/contact" },
+];
+
+const currentPath = Astro.url.pathname;
+---
+
+<header
+  id="site-header"
+  class="fixed top-0 left-0 right-0 z-50 py-5 transition-all duration-500"
+>
+  <div class="container mx-auto flex items-center justify-between px-6">
+    <a
+      href="/"
+      class="group flex flex-col items-start font-headers tracking-wide"
+    >
+      <span
+        id="logo-title"
+        class="text-2xl text-white transition-colors duration-500"
+      >
+        Sweet Caroline Seaport
+      </span>
+      <span
+        id="logo-subtitle"
+        class="block text-[10px] tracking-[0.3em] uppercase font-light text-white/70 transition-colors duration-500"
+      >
+        Key West, FL | 28 Night Minimum
+      </span>
+    </a>
+
+    <nav class="hidden lg:flex items-center gap-8">
+      {
+        navLinks.map((link) => (
+          <a
+            href={link.href}
+            data-nav-link
+            class:list={[
+              "text-sm font-medium tracking-wide transition-colors duration-300 hover:text-brand-accent",
+              currentPath === link.href ? "text-brand-accent" : "text-white/90",
+            ]}
+          >
+            {link.label}
+          </a>
+        ))
+      }
+      <Button href="/contact" variant="primary" size="sm">
+        Book Your Stay
+      </Button>
+    </nav>
+
+    <button
+      id="mobile-toggle"
+      aria-label="Toggle menu"
+      aria-expanded="false"
+      class="lg:hidden p-2 focus:outline-none"
+    >
+      <svg
+        id="icon-open"
+        xmlns="http://www.w3.org/2000/svg"
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        class="text-white transition-colors duration-500"
+      >
+        <line x1="4" x2="20" y1="12" y2="12"></line>
+        <line x1="4" x2="20" y1="6" y2="6"></line>
+        <line x1="4" x2="20" y1="18" y2="18"></line>
+      </svg>
+      <svg
+        id="icon-close"
+        xmlns="http://www.w3.org/2000/svg"
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        class="text-white hidden transition-colors duration-500"
+      >
+        <path d="M18 6 6 18"></path>
+        <path d="m6 6 12 12"></path>
+      </svg>
+    </button>
+  </div>
+
+  <div
+    id="mobile-menu"
+    class="lg:hidden overflow-hidden max-h-0 transition-[max-height] duration-500 ease-in-out bg-brand-secondary"
+    aria-hidden="true"
+  >
+    <nav class="flex flex-col items-center gap-6 py-10">
+      {
+        navLinks.map((link) => (
+          <a
+            data-nav-link
+            href={link.href}
+            class:list={[
+              "text-base tracking-widest uppercase font-medium transition-colors",
+              currentPath === link.href
+                ? "text-brand-accent"
+                : "text-white hover:text-brand-accent",
+            ]}
+          >
+            {link.label}
+          </a>
+        ))
+      }
+      <Button href="/contact" variant="primary" size="md">
+        Book Your Stay
+      </Button>
+    </nav>
+  </div>
+</header>
+
+<script>
+  function initHeader() {
+    const header = document.getElementById("site-header") as HTMLElement | null;
+    const mobileToggle = document.getElementById(
+      "mobile-toggle",
+    ) as HTMLButtonElement | null;
+    const mobileMenu = document.getElementById(
+      "mobile-menu",
+    ) as HTMLElement | null;
+    const iconOpen = document.getElementById("icon-open") as HTMLElement | null;
+    const iconClose = document.getElementById(
+      "icon-close",
+    ) as HTMLElement | null;
+    const navLinks = document.querySelectorAll<HTMLElement>("[data-nav-link]");
+
+    if (!header || !mobileToggle || !mobileMenu) return;
+
+    let isOpen = false;
+
+    function handleScroll() {
+      const isHeaderActive = window.scrollY > 50 || isOpen;
+
+      // Header container transitions
+      header?.classList.toggle("py-3", isHeaderActive);
+      header?.classList.toggle("py-5", !isHeaderActive);
+
+      // BACKGROUND COLOR: Swapping white for your dark blue brand color
+      header?.classList.toggle("bg-brand-secondary", isHeaderActive);
+      header?.classList.toggle("shadow-xl", isHeaderActive);
+
+      // In this specific design, text stays white for both states
+      // (White on transparent hero OR White on dark blue header)
+      // So we just ensure active links stay accent.
+
+      navLinks.forEach((link) => {
+        const href = link.getAttribute("href");
+        const isCurrentPage = window.location.pathname === href;
+
+        if (isCurrentPage) {
+          link.classList.add("text-brand-accent");
+          link.classList.remove("text-white/90", "text-white");
+        } else {
+          link.classList.remove("text-brand-accent");
+          link.classList.add("text-white");
+        }
+      });
+    }
+
+    const toggleMenu = () => {
+      isOpen = !isOpen;
+      mobileToggle.setAttribute("aria-expanded", String(isOpen));
+      mobileMenu.setAttribute("aria-hidden", String(!isOpen));
+      mobileMenu.style.maxHeight = isOpen
+        ? `${mobileMenu.scrollHeight}px`
+        : "0";
+      iconOpen?.classList.toggle("hidden", isOpen);
+      iconClose?.classList.toggle("hidden", !isOpen);
+      handleScroll();
+    };
+
+    mobileToggle.addEventListener("click", toggleMenu);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+  }
+
+  initHeader();
+  document.addEventListener("astro:after-swap", initHeader);
+</script>

@@ -1,0 +1,33 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600..700&family=Source+Sans+3:wght@400;500;600;700&display=swap");
+@import "tailwindcss";
+
+@theme {
+  --color-brand-primary: #1e40af;
+  --color-brand-secondary: #16a34a;
+  --color-brand-accent: #f59e0b;
+
+  --font-brand: "Source Sans 3", "system-ui", "sans-serif";
+  --font-headers: "Fraunces", "serif";
+}
+
+/* Force hover to work on all devices (especially laptops with touchscreens) */
+@variant hover (&:hover);
+
+@layer base {
+  html,
+  body {
+    margin: 0;
+    width: 100%;
+    font-family: var(--font-brand);
+    color: var(--color-brand-primary);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-headers);
+  }
+}

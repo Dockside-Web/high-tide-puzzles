@@ -1,0 +1,39 @@
+---
+interface Props {
+  title?: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+
+//UPDATE THESE FOR EVERY NEW CLIENT
+const brandName = "BRANDNAME";
+const homepageTagline = "TAGLINE";
+const socialImageURL = new URL("/og-main.jpg", Astro.site).href;
+
+const canonicalURL = new URL(Astro.url.pathname, Astro.site).href;
+
+// If a title exists (About, Gallery, etc.), show "Page | Brand"
+// If no title exists (Home), show "Brand | Tagline"
+const siteTitle = title
+  ? `${title} | ${brandName}`
+  : `${brandName} | ${homepageTagline}`;
+---
+
+<!-- Primary -->
+<title>{siteTitle}</title>
+<meta name="description" content={description} />
+<link rel="canonical" href={canonicalURL} />
+
+<!-- Open Graph -->
+<meta property="og:type" content="website" />
+<meta property="og:url" content={canonicalURL} />
+<meta property="og:title" content={siteTitle} />
+<meta property="og:description" content={description} />
+<meta property="og:image" content={socialImageURL} />
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={siteTitle} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={socialImageURL} />
