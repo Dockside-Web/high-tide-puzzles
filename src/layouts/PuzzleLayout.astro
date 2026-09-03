@@ -1,0 +1,171 @@
+---
+import Layout from "./Layout.astro";
+import { Image } from "astro:assets";
+import type { ImageMetadata } from "astro";
+
+interface Props {
+  name: string;
+  icon: ImageMetadata;
+  instructions: string;
+  hasPlusMode?: boolean;
+}
+
+const { name, icon, instructions, hasPlusMode = true } = Astro.props;
+
+const todayDate = new Intl.DateTimeFormat("en-US", {
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+}).format(new Date());
+
+const pageTitle=`${name}`;
+const metaDescription=`Play today's ${name} puzzle.`;
+---
+
+<Layout title={pageTitle} description={metaDescription}>
+  <div class="mx-auto flex w-full max-w-4xl flex-col px-4 py-2 sm:px-6">
+    <!-- Header -->
+    <header class="flex items-center justify-between border-b border-ink/10 pb-3">
+      <a
+        href="/"
+        class="inline-flex items-center gap-1.5 rounded-lg p-1.5 text-muted transition-colors hover:bg-ink/5 hover:text-ink cursor-pointer"
+        aria-label="Back to home"
+      >
+        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"></path>
+        </svg>
+        <span class="hidden text-sm font-medium sm:inline">Home</span>
+      </a>
+
+      {hasPlusMode && (
+        <div class="flex items-center rounded-full bg-ink/5 p-1 text-xs font-semibold">
+          <button type="button" data-mode="daily" class="mode-btn rounded-full bg-accent px-3 py-1 text-white transition-colors cursor-pointer">
+            Daily
+          </button>
+          <button type="button" data-mode="plus" class="mode-btn rounded-full px-3 py-1 text-muted transition-colors hover:text-ink cursor-pointer">
+            Plus
+          </button>
+        </div>
+      )}
+
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 rounded-lg bg-ink/5 px-2.5 py-1 text-sm font-mono font-bold text-ink">
+          <button id="timer-toggle-btn" type="button" class="text-muted transition-colors hover:text-ink cursor-pointer">
+            <svg id="timer-pause-icon" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            <svg id="timer-play-icon" class="hidden h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </button>
+          <span id="timer-display">00:00</span>
+        </div>
+
+        <button id="help-btn" type="button" class="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted transition-colors hover:bg-ink/5 hover:text-ink cursor-pointer">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Puzzle Title -->
+    <section class="mt-3 flex flex-col items-center gap-1 text-center">
+      <div class="flex items-center justify-center gap-2">
+        <Image src={icon} alt="" width={28} height={28} class="h-7 w-7 object-contain" />
+        <h1 class="text-2xl font-extrabold text-ink">{name}</h1>
+      </div>
+      <p class="text-[11px] font-semibold uppercase tracking-wider text-muted">{todayDate}</p>
+    </section>
+
+    <!-- Game Canvas Shell -->
+    <main class="relative mt-4 flex min-h-[360px] flex-col items-center justify-center">
+      <slot />
+
+      <div id="pause-overlay" class="absolute inset-0 z-20 hidden flex-col items-center justify-center rounded-xl bg-canvas/80 backdrop-blur-md">
+        <div class="text-center">
+          <p class="text-xl font-bold text-ink">Puzzle Paused</p>
+          <button id="resume-btn" type="button" class="mt-3 rounded-full bg-accent px-6 py-2 text-sm font-semibold text-white shadow-md hover:opacity-90 cursor-pointer">
+            Resume Game
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Help Modal -->
+    <dialog id="help-modal" class="w-full max-w-md rounded-2xl border border-ink/10 bg-canvas p-6 text-ink shadow-xl backdrop:bg-ink/50 backdrop:backdrop-blur-sm">
+      <div class="flex items-center justify-between border-b border-ink/10 pb-3">
+        <h2 class="text-lg font-bold">How to Play {name}</h2>
+        <button id="close-modal" type="button" class="p-1 text-muted hover:text-ink cursor-pointer">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <p class="mt-4 text-sm leading-relaxed text-muted">{instructions}</p>
+    </dialog>
+  </div>
+</Layout>
+
+<script>
+  // Mode Switcher
+  const modeBtns = document.querySelectorAll<HTMLButtonElement>('.mode-btn');
+  modeBtns.forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      modeBtns.forEach((b) => b.classList.replace('bg-accent', 'text-muted') && b.classList.remove('text-white'));
+      const target = e.currentTarget as HTMLButtonElement;
+      target.classList.replace('text-muted', 'bg-accent');
+      target.classList.add('text-white');
+
+      const mode = target.getAttribute('data-mode');
+      window.dispatchEvent(new CustomEvent('puzzle-mode-change', { detail: { mode } }));
+      window.dispatchEvent(new Event('reset-layout-timer'));
+    });
+  });
+
+  // Timer Control
+  let secondsElapsed = 0;
+  let timerInterval: number | undefined;
+  let isPaused = false;
+
+  const timerDisplay = document.getElementById('timer-display');
+  const timerToggleBtn = document.getElementById('timer-toggle-btn');
+  const pauseIcon = document.getElementById('timer-pause-icon');
+  const playIcon = document.getElementById('timer-play-icon');
+  const pauseOverlay = document.getElementById('pause-overlay');
+  const resumeBtn = document.getElementById('resume-btn');
+
+  function updateDisplay() {
+    if (!timerDisplay) return;
+    const mins = Math.floor(secondsElapsed / 60).toString().padStart(2, '0');
+    const secs = (secondsElapsed % 60).toString().padStart(2, '0');
+    timerDisplay.textContent = `${mins}:${secs}`;
+  }
+
+  function togglePause() {
+    isPaused = !isPaused;
+    pauseIcon?.classList.toggle('hidden', isPaused);
+    playIcon?.classList.toggle('hidden', !isPaused);
+    pauseOverlay?.classList.toggle('hidden', !isPaused);
+    pauseOverlay?.classList.toggle('flex', isPaused);
+  }
+
+  timerInterval = window.setInterval(() => {
+    if (!isPaused) {
+      secondsElapsed++;
+      updateDisplay();
+    }
+  }, 1000);
+
+  window.addEventListener('reset-layout-timer', () => {
+    secondsElapsed = 0;
+    isPaused = false;
+    updateDisplay();
+  });
+
+  timerToggleBtn?.addEventListener('click', togglePause);
+  resumeBtn?.addEventListener('click', togglePause);
+
+  // Modal Dialog Control
+  const helpBtn = document.getElementById('help-btn');
+  const closeBtn = document.getElementById('close-modal');
+  const modal = document.getElementById('help-modal') as HTMLDialogElement | null;
+
+  helpBtn?.addEventListener('click', () => {
+    modal?.showModal();
+    if (!isPaused) togglePause();
+  });
+  closeBtn?.addEventListener('click', () => modal?.close());
+</script>

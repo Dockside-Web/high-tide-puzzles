@@ -1,0 +1,139 @@
+---
+import type { PuzzleConfig } from "../../data/puzzles";
+
+interface Props {
+  puzzle: PuzzleConfig;
+}
+
+const { puzzle } = Astro.props;
+
+// Mock 7x7 grid representation for visual show
+// 'B' = Blue Berry, 'W' = White Berry, null = Empty
+const grid = [
+  [null, "B", null, null, null, "W", null],
+  [null, null, null, "B", null, null, null],
+  ["W", null, "B", null, null, null, "B"],
+  [null, null, null, "W", null, null, null],
+  ["B", null, null, null, "B", null, "W"],
+  [null, null, "W", null, null, null, null],
+  [null, "B", null, null, null, "B", null],
+];
+---
+
+<div class="flex w-full flex-col items-center gap-4">
+  <!-- Difficulty Nav Bar -->
+  {
+    puzzle.difficulties.length > 1 && (
+      <nav class="flex w-full justify-center border-b border-ink/10" aria-label="Difficulty levels">
+        <div class="flex gap-2 sm:gap-6">
+          {puzzle.difficulties.map((diff, index) => (
+            <button
+              type="button"
+              data-difficulty={diff.id}
+              class={`difficulty-tab border-b-2 px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
+                index === 0
+                  ? "border-accent text-accent"
+                  : "border-transparent text-muted hover:text-ink"
+              }`}
+            >
+              {diff.label}
+            </button>
+          ))}
+        </div>
+      </nav>
+    )
+  }
+
+  <!-- Action Controls -->
+  <nav class="flex items-center justify-center gap-1 text-xs font-medium text-muted sm:gap-2">
+    <button id="btn-undo" type="button" class="flex items-center gap-1 rounded-md px-2.5 py-1.5 transition-colors hover:bg-ink/5 hover:text-ink cursor-pointer">
+      <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+      <span>Undo</span>
+    </button>
+    <button id="btn-redo" type="button" class="flex items-center gap-1 rounded-md px-2.5 py-1.5 transition-colors hover:bg-ink/5 hover:text-ink cursor-pointer">
+      <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>
+      <span>Redo</span>
+    </button>
+    <button id="btn-erase" type="button" class="flex items-center gap-1 rounded-md px-2.5 py-1.5 transition-colors hover:bg-ink/5 hover:text-ink cursor-pointer">
+      <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16c-1.5-1.5-1.5-3.5 0-5l7-7c1.5-1.5 3.5-1.5 5 0l5 5c1.5 1.5 1.5 3.5 0 5l-5 5Z"/><path d="M18 13l-5-5"/></svg>
+      <span>Erase</span>
+    </button>
+    <button id="btn-restart" type="button" class="flex items-center gap-1 rounded-md px-2.5 py-1.5 transition-colors hover:bg-ink/5 hover:text-ink cursor-pointer">
+      <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+      <span>Restart</span>
+    </button>
+  </nav>
+
+  <!-- Interactive/Visual Grid Canvas -->
+  <div class="relative rounded-2xl border-2 border-ink bg-surface p-4 shadow-md">
+    <!-- SVG Mock Loop overlay for show -->
+    <svg class="absolute inset-4 pointer-events-none z-10 h-[calc(100%-2rem)] w-[calc(100%-2rem)]" viewBox="0 0 350 350">
+      <path
+        d="M 75 25 L 275 25 L 275 125 L 325 125 L 325 325 L 225 325 L 225 225 L 125 225 L 125 325 L 25 325 L 25 125 L 75 125 Z"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        class="text-accent/40"
+      />
+    </svg>
+
+    <!-- Grid Nodes -->
+    <div class="grid grid-cols-7 gap-0 border border-line rounded-xl overflow-hidden bg-canvas/30">
+      {
+        grid.map((row) =>
+          row.map((item) => (
+            <button
+              type="button"
+              class="relative flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center border border-line/60 transition-colors hover:bg-accent/10 cursor-pointer group"
+            >
+              <!-- Cell Grid Dot -->
+              <span class="h-1 w-1 rounded-full bg-ink/15 group-hover:bg-accent/50" />
+
+              {/* Blue Berry (Masyu Black Circle style) */}
+              {item === "B" && (
+                <span class="absolute h-5 w-5 rounded-full bg-accent shadow-sm ring-2 ring-accent/30 transition-transform group-hover:scale-110" />
+              )}
+
+              {/* White Berry (Masyu White Circle style) */}
+              {item === "W" && (
+                <span class="absolute h-5 w-5 rounded-full border-2 border-ink bg-surface shadow-sm transition-transform group-hover:scale-110" />
+              )}
+            </button>
+          ))
+        )
+      }
+    </div>
+  </div>
+
+  <!-- Quick Instructions Footer Badge -->
+  <div class="flex items-center gap-4 text-xs font-medium text-muted mt-1">
+    <div class="flex items-center gap-1.5">
+      <span class="h-3.5 w-3.5 rounded-full bg-accent inline-block" />
+      <span>Straight through</span>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <span class="h-3.5 w-3.5 rounded-full border-2 border-ink bg-surface inline-block" />
+      <span>Must turn</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  const diffTabs = document.querySelectorAll<HTMLButtonElement>('.difficulty-tab');
+  diffTabs.forEach((tab) => {
+    tab.addEventListener('click', (e) => {
+      diffTabs.forEach((t) => t.classList.replace('border-accent', 'border-transparent') && t.classList.replace('text-accent', 'text-muted'));
+      const target = e.currentTarget as HTMLButtonElement;
+      target.classList.replace('border-transparent', 'border-accent');
+      target.classList.replace('text-muted', 'text-accent');
+
+      window.dispatchEvent(new Event('reset-layout-timer'));
+    });
+  });
+
+  document.getElementById('btn-restart')?.addEventListener('click', () => {
+    window.dispatchEvent(new Event('reset-layout-timer'));
+  });
+</script>

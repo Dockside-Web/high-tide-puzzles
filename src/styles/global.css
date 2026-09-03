@@ -1,33 +1,57 @@
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600..700&family=Source+Sans+3:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 
-@theme {
-  --color-brand-primary: #1e40af;
-  --color-brand-secondary: #16a34a;
-  --color-brand-accent: #f59e0b;
-
-  --font-brand: "Source Sans 3", "system-ui", "sans-serif";
-  --font-headers: "Fraunces", "serif";
+/* 1. Scale base font size to scale rem units site-wide */
+html {
+  font-size: 18px;
 }
 
-/* Force hover to work on all devices (especially laptops with touchscreens) */
-@variant hover (&:hover);
+/* 2. Map CSS variables to Tailwind v4 Theme namespace */
+@theme {
+  --color-canvas: rgb(var(--canvas));
+  --color-surface: rgb(var(--surface));
+  --color-band: rgb(var(--band));
+  --color-line: rgb(var(--line));
+  --color-ink: rgb(var(--ink));
+  --color-muted: rgb(var(--muted));
+  --color-accent: rgb(var(--accent));
 
-@layer base {
-  html,
-  body {
-    margin: 0;
-    width: 100%;
-    font-family: var(--font-brand);
-    color: var(--color-brand-primary);
-  }
+  /* Custom transition timing */
+  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+}
 
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    font-family: var(--font-headers);
-  }
+/* 3. Raw RGB values for CSS variables */
+:root {
+  --canvas: 247 246 240;
+  --surface: 255 255 255;
+  --band: 234 238 238;
+  --line: 214 223 223;
+  --ink: 26 36 46;
+  --muted: 96 111 118;
+  --accent: 58 110 130;
+}
+
+.dark {
+  --canvas: 20 28 36;
+  --surface: 28 38 48;
+  --band: 24 33 42;
+  --line: 46 59 70;
+  --ink: 231 236 235;
+  --muted: 150 163 170;
+  --accent: 158 199 198;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background-color: rgb(var(--accent) / 0.22);
 }

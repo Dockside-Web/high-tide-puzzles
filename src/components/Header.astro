@@ -1,0 +1,100 @@
+---
+import { Image } from "astro:assets";
+import logo from "../assets/high-tide-logo.png";
+---
+
+<header class="sticky top-0 z-20 bg-canvas/85 backdrop-blur-md">
+  <div class="mx-auto flex h-20 w-full max-w-6xl items-center justify-between px-6 sm:px-8">
+    <a
+      href="/"
+      class="group inline-flex items-center rounded-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+    >
+      <Image src={logo} alt="High Tide Puzzles" inferSize class="h-20 w-auto" />
+    </a>
+
+    <button
+      id="theme-toggle"
+      type="button"
+      aria-label="Switch to dark mode"
+      aria-pressed="false"
+      class="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-full text-muted transition-colors duration-150 ease-smooth hover:bg-ink/5 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 dark:hover:bg-ink/10"
+    >
+      <!-- Dark Mode Icon: Lighthouse OFF (Unlit) -->
+      <svg
+        id="theme-icon-unlit"
+        class="h-6 w-6"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <!-- Top Dome & Lantern Roof -->
+        <path d="M9.5 5.5a2.5 2.5 0 0 1 5 0" />
+        <path d="M8.5 7h7" />
+        <!-- Main Tower -->
+        <path d="M9 7l-1.5 13h9L15 7" />
+        <path d="M6 20h12" />
+        <!-- Tower Windows / Stripes -->
+        <path d="M8.2 11h7.6" />
+        <path d="M7.8 15h8.4" />
+      </svg>
+      
+      <!-- Light Mode Icon: Lighthouse ON (Emitting Light Beams) -->
+      <svg
+        id="theme-icon-lit"
+        class="hidden h-6 w-6"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <!-- Top Dome & Roof -->
+        <path d="M9.5 5.5a2.5 2.5 0 0 1 5 0" />
+        <path d="M8.5 7h7" />
+        <!-- Glowing Core Indicator -->
+        <circle cx="12" cy="6" r="0.75" fill="currentColor" />
+        <!-- Main Tower -->
+        <path d="M9 7l-1.5 13h9L15 7" />
+        <path d="M6 20h12" />
+        <!-- Stripes -->
+        <path d="M8.2 11h7.6" />
+        <path d="M7.8 15h8.4" />
+        <!-- Light Beams shining out -->
+        <path d="M3.5 4l3.5 1.5" />
+        <path d="M20.5 4L17 5.5" />
+        <path d="M2.5 7.5l4.5.5" />
+        <path d="M21.5 7.5L17 8" />
+      </svg>
+    </button>
+  </div>
+</header>
+
+<script>
+  const STORAGE_KEY = 'daily-puzzles-theme'
+  const toggleBtn = document.getElementById('theme-toggle')
+  const unlitIcon = document.getElementById('theme-icon-unlit')
+  const litIcon = document.getElementById('theme-icon-lit')
+
+  function syncThemeUI() {
+    const isDark = document.documentElement.classList.contains('dark')
+    unlitIcon?.classList.toggle('hidden', isDark)
+    litIcon?.classList.toggle('hidden', !isDark)
+    toggleBtn?.setAttribute('aria-pressed', String(isDark))
+    toggleBtn?.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode')
+  }
+  syncThemeUI()
+
+  toggleBtn?.addEventListener('click', () => {
+    const next = document.documentElement.classList.contains('dark') ? 'light' : 'dark'
+    document.documentElement.classList.toggle('dark', next === 'dark')
+    document.documentElement.style.colorScheme = next
+    localStorage.setItem(STORAGE_KEY, next)
+    syncThemeUI()
+  })
+</script>

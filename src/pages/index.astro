@@ -1,9 +1,96 @@
 ---
 import Layout from "../layouts/Layout.astro";
+import { info } from "../data/info.ts";
+import SectionHeader from "../components/index/sectionHeader.astro";
+import DailyPuzzles from "../components/index/dailyPuzzles.astro";
+import Plus from "../components/index/plus.astro";
+import FAQ from "../components/index/FAQ.astro";
 
-const metaDescription = "DESCRIPTION";
+const metaDescription="Free daily puzzles — a new challenge every day.";
 ---
 
 <Layout description={metaDescription}>
-  <h1 class="text-3xl font-bold">Hello, World!!!!!</h1>
+  <main class="w-full pt-4">
+    <!-- Daily Puzzles Section -->
+    <section aria-labelledby="puzzles-heading">
+      <DailyPuzzles />
+    </section>
+
+    <section aria-labelledby="plus-heading">
+      <Plus />
+    </section>
+
+    <!-- FAQ Section -->
+    <section aria-labelledby="faq-heading" class="mt-16">
+      <FAQ />
+    </section>
+
+    <!-- Contact Section -->
+    <section aria-labelledby="contact-heading" class="mt-16">
+      <SectionHeader id="contact" title="Contact" />
+      <div class="mx-auto w-full max-w-6xl px-6 pt-8 sm:px-8">
+        <p class="text-base leading-relaxed text-muted">
+          Have a question, found a puzzle bug, or have some feedback?
+        </p>
+
+        <div class="mt-5 flex flex-wrap items-center gap-x-8 gap-y-3">
+          <a
+            href={info.emailHref}
+            class="group inline-flex items-center gap-3 rounded-md text-base font-semibold text-ink transition-colors duration-150 ease-smooth hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+          >
+            <svg
+              aria-hidden="true"
+              class="h-5 w-5 text-muted transition-colors duration-150 ease-smooth group-hover:text-accent"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.75"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+              <path d="m22 6-10 7L2 6"></path>
+            </svg>
+            {info.email}
+          </a>
+          <a
+            href={info.coffeeLink}
+            target="_blank"
+            rel="noreferrer"
+            class="group inline-flex items-center gap-2.5 rounded-full bg-accent/10 px-4 py-1.5 text-base font-semibold text-accent transition-colors duration-150 ease-smooth hover:bg-accent hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+          >
+            <svg
+              aria-hidden="true"
+              class="h-5 w-5 transition-transform duration-150 ease-smooth group-hover:scale-110"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.75"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M17 8h1a4 4 0 1 1 0 8h-1M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"></path>
+              <path d="M6 1v3M10 1v3M14 1v3"></path>
+            </svg>
+            Buy Me a Coffee
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    function scrollToHash() {
+      if (location.hash) {
+        const target = document.querySelector(location.hash)
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          return
+        }
+      }
+      window.scrollTo({ top: 0 })
+    }
+    window.addEventListener('DOMContentLoaded', scrollToHash)
+    window.addEventListener('hashchange', scrollToHash)
+  </script>
 </Layout>

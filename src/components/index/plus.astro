@@ -1,0 +1,52 @@
+---
+import SectionHeader from "./sectionHeader.astro";
+import { info } from "../../data/info";
+
+interface Props {
+  upgradeUrl?: string;
+}
+
+const { upgradeUrl = info.coffeeLink || "#" } = Astro.props;
+---
+
+<section aria-labelledby="plus-heading" class="mt-16">
+  <SectionHeader id="plus" title="Plus" metaText="Unlock Unlimited Play" />
+
+  <div class="mx-auto w-full max-w-6xl px-6 pt-10 sm:px-8">
+    <div class="flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
+      
+      <!-- Content Block -->
+      <div class="max-w-2xl space-y-4">
+        <div class="flex items-center gap-2">
+          <span class="h-2 w-2 rounded-full bg-accent"></span>
+          <span class="text-xs font-bold uppercase tracking-widest text-accent">
+            High Tide Plus
+          </span>
+        </div>
+
+        <h3 class="text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
+          Unlimited daily puzzles, all year long.
+        </h3>
+
+        <p class="text-lg leading-relaxed text-muted">
+          Plus Members gain access to unlimited additional puzzles and full archive access throughout the year.
+        </p>
+
+        <p class="text-sm font-medium text-muted/80">
+          This website does not contain ads. Thank you for your support!
+        </p>
+      </div>
+
+      <!-- Call to Action -->
+      <div class="shrink-0 pt-2 md:pt-0">
+        <a
+          href={upgradeUrl}
+          class="inline-flex items-center justify-center rounded-xl bg-ink px-7 py-3.5 text-base font-semibold text-canvas transition-opacity duration-150 ease-smooth hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+        >
+          Upgrade to Plus 2026 &rarr;
+        </a>
+      </div>
+
+    </div>
+  </div>
+</section>

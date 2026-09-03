@@ -1,0 +1,54 @@
+---
+import SectionHeader from "./sectionHeader.astro";
+import { Image } from "astro:assets";
+import { PUZZLE_LIST } from "../../data/puzzles.ts";
+
+const today = new Intl.DateTimeFormat('en-US', {
+  month: 'long',
+  day: 'numeric',
+}).format(new Date());
+---
+
+<SectionHeader id="puzzles" title="Daily Puzzles" metaText={`${today} · ${PUZZLE_LIST.length} puzzles`} />
+
+<div class="mx-auto w-full max-w-6xl px-6 pt-8 sm:px-8">
+  <ul class="grid grid-cols-1 gap-5 sm:grid-cols-1 lg:grid-cols-2">
+    {
+      PUZZLE_LIST.map((puzzle) => (
+        <li>
+          <a
+            href={`/puzzles/${puzzle.slug}`}
+            class="group flex items-center gap-4 rounded-2xl border border-line bg-surface p-5 transition-[border-color,transform,background-color] duration-150 ease-smooth hover:-translate-y-0.5 hover:border-ink/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 dark:hover:border-ink/30"
+          >
+            <!-- Puzzle Icon -->
+            <span class="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-ink/5 dark:bg-ink/10">
+              <Image
+                src={puzzle.icon}
+                alt=""
+                width={28}
+                height={28}
+                class="h-7 w-7 object-contain"
+              />
+            </span>
+
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-lg font-bold leading-tight tracking-tight text-ink">
+                {puzzle.name}
+              </span>
+            </span>
+
+            {puzzle.isNew && (
+              <span class="shrink-0 rounded-full bg-accent/10 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-accent">
+                New!
+              </span>
+            )}
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+
+  <p class="mt-8 text-sm font-medium text-muted">
+    There are new puzzles every day. Come back tomorrow for more!
+  </p>
+</div>

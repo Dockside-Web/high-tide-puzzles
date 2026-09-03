@@ -1,3 +1,44 @@
 ---
+import { info } from "../data/info";
 
+const currentYear = new Date().getFullYear();
+const linkClass = "text-muted transition-colors duration-150 ease-smooth hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60";
 ---
+
+<footer class="mt-20 border-t border-line/70">
+  <div class="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+      <a
+        href="/"
+        class="group inline-flex items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+      >
+        <span aria-hidden="true" class="grid h-6 w-6 shrink-0 grid-cols-2 gap-0.5">
+          <span class="rounded-xs bg-accent"></span>
+          <span class="rounded-xs bg-ink/20 dark:bg-ink/25"></span>
+          <span class="rounded-xs bg-ink/20 dark:bg-ink/25"></span>
+          <span class="rounded-xs bg-accent"></span>
+        </span>
+        <span class="text-lg font-bold tracking-tight text-ink">{info.name}</span>
+      </a>
+      <p class="text-sm text-muted">
+        © {currentYear} All rights reserved.
+      </p>
+    </div>
+
+    <nav aria-label="Legal Links">
+      <ul class="flex items-center gap-3 text-sm">
+        <li>
+          <a href="/legal/privacy/" class={linkClass}>
+            Privacy Policy
+          </a>
+        </li>
+        <li class="text-line" aria-hidden="true">|</li>
+        <li>
+          <a href="/legal/terms/" class={linkClass}>
+            Terms of Service
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</footer>

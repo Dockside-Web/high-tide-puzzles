@@ -1,0 +1,122 @@
+---
+import SectionHeader from "./sectionHeader.astro";
+
+interface FaqItem {
+  question: string
+  answer: string
+}
+
+const faqs: FaqItem[] = [
+  {
+    question: 'What are the daily puzzles?',
+    answer:
+      'Six short puzzles — word, number, and pattern based. Each one is designed to take a few minutes, and everyone plays the same puzzle on the same day.',
+  },
+  {
+    question: 'When are new puzzles released?',
+    answer:
+      'New puzzles unlock every day at midnight in your local time zone. Your streak carries over as long as you finish before the next release.',
+  },
+  {
+    question: 'Can I play previous puzzles?',
+    answer:
+      'Yes. Every puzzle has an archive going back to its launch day, and archive puzzles can be played at any time without affecting your current streak.',
+  },
+  {
+    question: 'Are the puzzles free?',
+    answer:
+      'All six daily puzzles are free, with no account required. An optional account saves your streaks and stats across devices.',
+  },
+  {
+    question: 'How can I report a problem?',
+    answer:
+      'Use the contact form below with the puzzle name and the date of the puzzle. We read every message and usually reply within two days.',
+  },
+]
+---
+
+<SectionHeader id="faq" title="FAQ" />
+
+<div class="mx-auto w-full max-w-6xl px-6 pt-4 sm:px-8">
+  <div class="divide-y divide-line" id="faq-list">
+    {
+      faqs.map((item, index) => {
+        const panelId = `faq-panel-${index}`
+        const buttonId = `faq-button-${index}`
+        return (
+          <div data-faq-item>
+            <h3>
+              <button
+                id={buttonId}
+                type="button"
+                aria-expanded="false"
+                aria-controls={panelId}
+                data-faq-trigger
+                class="flex w-full cursor-pointer items-center justify-between gap-6 py-5 text-left text-lg font-semibold text-ink transition-colors duration-150 ease-smooth hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+              >
+                {item.question}
+                <svg
+                  data-faq-icon
+                  aria-hidden="true"
+                  class="h-6 w-6 shrink-0 text-muted transition-transform duration-200 ease-smooth"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M12 5v14M5 12h14"></path>
+                </svg>
+              </button>
+            </h3>
+            <div
+              id={panelId}
+              role="region"
+              aria-labelledby={buttonId}
+              hidden
+              data-faq-panel
+              class="pb-6 pr-10 text-base leading-relaxed text-muted"
+            >
+              {item.answer}
+            </div>
+          </div>
+        )
+      })
+    }
+  </div>
+</div>
+
+<script>
+  function setupFaqAccordion() {
+    const triggers = document.querySelectorAll('[data-faq-trigger]')
+
+    triggers.forEach((trigger) => {
+      trigger.addEventListener('click', () => {
+        const item = trigger.closest('[data-faq-item]')
+        if (!item) return
+
+        const panel = item.querySelector('[data-faq-panel]')
+        const icon = item.querySelector('[data-faq-icon]')
+        const isExpanded = trigger.getAttribute('aria-expanded') === 'true'
+
+        trigger.setAttribute('aria-expanded', String(!isExpanded))
+
+        if (panel) {
+          if (isExpanded) {
+            panel.setAttribute('hidden', '')
+          } else {
+            panel.removeAttribute('hidden')
+          }
+        }
+
+        if (icon) {
+          icon.classList.toggle('rotate-45', !isExpanded)
+        }
+      })
+    })
+  }
+
+  setupFaqAccordion()
+  document.addEventListener('astro:after-swap', setupFaqAccordion)
+</script>

@@ -1,0 +1,22 @@
+---
+interface Props {
+  id: string;
+  title: string;
+  metaText?: string;
+  class?: string;
+}
+
+const { id, title, metaText, class: className = '' } = Astro.props;
+---
+
+<div id={id} class:list={["w-full scroll-mt-20 bg-band", className]}>
+  <div class="mx-auto flex w-full max-w-6xl items-baseline justify-between gap-6 px-6 py-4 sm:px-8">
+    <h2
+      id={`${id}-heading`}
+      class="text-base font-bold uppercase tracking-[0.09em] text-ink/90"
+    >
+      {title}
+    </h2>
+    {metaText && <p class="text-sm font-medium text-muted">{metaText}</p>}
+  </div>
+</div>
