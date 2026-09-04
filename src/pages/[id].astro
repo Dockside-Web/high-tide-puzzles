@@ -1,0 +1,36 @@
+---
+import PuzzleLayout from "../puzzles/PuzzleLayout.astro";
+import { PUZZLES, type PuzzleConfig } from "../puzzles/puzzles";
+
+export function getStaticPaths() {
+  return Object.keys(PUZZLES).map((id) => ({
+    params: { id },
+    props: { puzzle: PUZZLES[id] },
+  }));
+}
+
+interface Props {
+  puzzle: PuzzleConfig;
+}
+
+const { puzzle } = Astro.props;
+const ActivePuzzleComponent = puzzle.component;
+---
+
+<PuzzleLayout
+  name={puzzle.name}
+  icon={puzzle.icon}
+  instructions={puzzle.instructions}
+  difficulties={puzzle.difficulties}
+  toolbar={puzzle.toolbar}
+>
+  {
+    ActivePuzzleComponent ? (
+      <ActivePuzzleComponent puzzle={puzzle} />
+    ) : (
+      <p class="text-center font-semibold text-muted">
+        Component not found for "{puzzle.name}"
+      </p>
+    )
+  }
+</PuzzleLayout>

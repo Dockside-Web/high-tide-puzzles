@@ -1,0 +1,499 @@
+---
+import Layout from "../layout/Layout.astro";
+import { Image } from "astro:assets";
+import type { ImageMetadata } from "astro";
+import type { Difficulty, PuzzleToolbarConfig } from "./puzzles";
+import Toolbar from "../components/Toolbar.astro";
+
+interface Props {
+  name: string;
+  icon: ImageMetadata;
+  instructions: string;
+  difficulties?: Difficulty[];
+  toolbar?: PuzzleToolbarConfig;
+  hasPlusMode?: boolean;
+}
+
+const {
+  name,
+  icon,
+  instructions,
+  difficulties = [],
+  toolbar,
+  hasPlusMode = true,
+} = Astro.props;
+
+const todayDate = new Intl.DateTimeFormat("en-US", {
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+}).format(new Date());
+
+const pageTitle = `${name}`;
+const metaDescription = `Play today's ${name} puzzle.`;
+---
+
+<Layout title={pageTitle} description={metaDescription}>
+  <div class="mx-auto flex w-full max-w-4xl flex-1 flex-col px-3 py-0.5 sm:px-6 sm:py-2">
+
+    <!-- Puzzle Header -->
+    <header class="pb-1.5 sm:pb-2">
+
+      <!-- Main Title Row -->
+      <div class="flex items-center justify-between gap-2">
+
+        <!-- Left: Back + Icon + Title + Help + Date -->
+        <div class="flex min-w-0 items-center gap-1.5 sm:gap-2">
+
+          <!-- Back -->
+          <a
+            href="/"
+            class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-ink/5 hover:text-ink cursor-pointer"
+            aria-label="Back to home"
+          >
+            <svg
+              class="h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M19 12H5M12 19l-7-7 7-7"></path>
+            </svg>
+          </a>
+
+          <!-- Puzzle Icon -->
+          <Image
+            src={icon}
+            alt="Puzzle icon"
+            width={20}
+            height={20}
+            class="h-4 w-4 shrink-0 object-contain sm:h-5 sm:w-5"
+          />
+
+          <!-- Title -->
+          <h1 class="truncate text-base font-extrabold text-ink sm:text-lg">
+            {name}
+          </h1>
+
+          <!-- Help Button -->
+          <button
+            id="help-btn"
+            type="button"
+            class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-ink/5 hover:text-ink cursor-pointer sm:h-6 sm:w-6"
+            aria-label="How to play"
+          >
+            <svg
+              class="h-3.5 w-3.5 sm:h-4 sm:w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+          </button>
+
+          <!-- Date -->
+          <span class="truncate text-[11px] font-medium text-muted sm:text-xs">
+            {todayDate}
+          </span>
+
+        </div>
+
+        <!-- Right: Settings -->
+        <div class="flex items-center">
+          <button
+            id="settings-btn"
+            type="button"
+            class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-ink/5 hover:text-ink cursor-pointer"
+            aria-label="Settings"
+          >
+            <svg
+              class="h-4 w-4 sm:h-5 sm:w-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+        </div>
+
+      </div>
+
+
+      <!-- Controls Sub-Row -->
+      <div class="mt-1 flex items-center justify-between gap-2 select-none sm:mt-1.5">
+
+        <!-- Left: Daily / Plus Toggle -->
+        {hasPlusMode ? (
+          <div class="flex items-center gap-0.5 text-xs font-semibold">
+
+            <button
+              type="button"
+              data-mode="daily"
+              class="mode-btn rounded-full bg-accent px-2.5 py-1 text-white transition-colors cursor-pointer"
+            >
+              Daily
+            </button>
+
+            <button
+              type="button"
+              data-mode="plus"
+              class="mode-btn rounded-full px-2.5 py-1 text-muted transition-colors hover:bg-ink/5 hover:text-ink cursor-pointer"
+            >
+              Plus
+            </button>
+
+          </div>
+        ) : (
+          <div></div>
+        )}
+
+
+        <!-- Center: Difficulty Tabs -->
+        {difficulties.length > 0 ? (
+          <nav
+            aria-label="Difficulty levels"
+            class="flex items-center gap-1.5 sm:gap-2"
+          >
+
+            {difficulties.map((diff: Difficulty, index: number) => (
+              <button
+                type="button"
+                data-difficulty={diff.id}
+                class={`difficulty-tab relative px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer sm:px-4 sm:py-1.5 sm:text-sm ${
+                  index === 0
+                    ? "text-accent"
+                    : "text-muted hover:text-ink"
+                }`}
+              >
+                {diff.label}
+
+                <!-- Active underline -->
+                <span
+                  class={`difficulty-underline absolute bottom-0 left-1/2 h-0.5 -translate-x-1/2 rounded-full bg-accent transition-all ${
+                    index === 0 ? "w-10 opacity-100" : "w-0 opacity-0"
+                  }`}
+                ></span>
+              </button>
+            ))}
+
+          </nav>
+        ) : (
+          <div></div>
+        )}
+
+
+        <!-- Right: Timer -->
+        <div class="flex min-w-[55px] items-center justify-end gap-1.5 text-xs font-mono font-bold text-ink sm:min-w-[65px] sm:text-sm">
+
+          <button
+            id="timer-toggle-btn"
+            type="button"
+            class="inline-flex items-center justify-center text-muted transition-colors hover:text-ink cursor-pointer"
+            aria-label="Pause timer"
+          >
+            <svg
+              id="timer-pause-icon"
+              class="h-3.5 w-3.5 sm:h-4 sm:w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect x="6" y="4" width="4" height="16"></rect>
+              <rect x="14" y="4" width="4" height="16"></rect>
+            </svg>
+
+            <svg
+              id="timer-play-icon"
+              class="hidden h-3.5 w-3.5 sm:h-4 sm:w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+          </button>
+
+          <span id="timer-display">00:00</span>
+
+        </div>
+
+      </div>
+
+    </header>
+
+
+    <!-- Central Board Area -->
+    <main class="relative flex w-full flex-1 flex-col items-center justify-start pt-3 sm:pt-4">
+
+      <slot />
+
+      <!-- Pause Overlay -->
+      <div
+        id="pause-overlay"
+        class="absolute inset-0 z-30 hidden flex-col items-center justify-center rounded-xl bg-canvas/85 backdrop-blur-md"
+      >
+        <div class="text-center">
+
+          <p class="text-lg font-bold text-ink sm:text-xl">
+            Puzzle Paused
+          </p>
+
+          <button
+            id="resume-btn"
+            type="button"
+            class="mt-2 rounded-full bg-accent px-5 py-1.5 text-xs font-semibold text-white shadow-md hover:opacity-90 cursor-pointer sm:mt-3 sm:px-6 sm:py-2 sm:text-sm"
+          >
+            Resume Puzzle
+          </button>
+
+        </div>
+      </div>
+
+    </main>
+
+
+    <!-- Shared Action Toolbar -->
+    {toolbar && (
+      <div class="flex w-full justify-center pt-2 pb-0.5">
+        <Toolbar config={toolbar} />
+      </div>
+    )}
+
+
+    <!-- Help Modal -->
+    <dialog
+      id="help-modal"
+      class="m-auto w-[90vw] max-w-md rounded-2xl border border-ink/10 bg-canvas p-5 text-ink shadow-xl backdrop:bg-ink/50 backdrop:backdrop-blur-sm sm:p-6"
+    >
+
+      <div class="flex items-center justify-between border-b border-ink/10 pb-3">
+
+        <h2 class="text-base font-bold sm:text-lg">
+          How to Play {name}
+        </h2>
+
+        <button
+          id="close-modal"
+          type="button"
+          class="p-1 text-muted hover:text-ink cursor-pointer"
+          aria-label="Close help"
+        >
+          <svg
+            class="h-5 w-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M18 6L6 18M6 6l12 12"></path>
+          </svg>
+        </button>
+
+      </div>
+
+      <p class="mt-3 text-xs leading-relaxed text-muted sm:mt-4 sm:text-sm">
+        {instructions}
+      </p>
+
+    </dialog>
+
+  </div>
+</Layout>
+
+
+<script>
+  // ============================================
+  // Difficulty Tab Switching
+  // ============================================
+
+  const diffTabs =
+    document.querySelectorAll<HTMLButtonElement>(".difficulty-tab");
+
+  diffTabs.forEach((tab) => {
+    tab.addEventListener("click", (e) => {
+
+      diffTabs.forEach((t) => {
+        t.classList.remove("text-accent");
+        t.classList.add("text-muted");
+
+        const underline =
+          t.querySelector<HTMLElement>(".difficulty-underline");
+
+        underline?.classList.remove("w-10", "opacity-100");
+        underline?.classList.add("w-0", "opacity-0");
+      });
+
+      const target = e.currentTarget as HTMLButtonElement;
+
+      target.classList.remove("text-muted");
+      target.classList.add("text-accent");
+
+      const underline =
+        target.querySelector<HTMLElement>(".difficulty-underline");
+
+      underline?.classList.remove("w-0", "opacity-0");
+      underline?.classList.add("w-10", "opacity-100");
+
+      const difficulty = target.getAttribute("data-difficulty");
+
+      window.dispatchEvent(
+        new CustomEvent("puzzle-difficulty-change", {
+          detail: { difficulty },
+        })
+      );
+
+      window.dispatchEvent(new Event("reset-layout-timer"));
+    });
+  });
+
+
+  // ============================================
+  // Mode Switching
+  // ============================================
+
+  const modeBtns =
+    document.querySelectorAll<HTMLButtonElement>(".mode-btn");
+
+  modeBtns.forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+
+      modeBtns.forEach((b) => {
+        b.classList.remove("bg-accent", "text-white");
+        b.classList.add("text-muted");
+      });
+
+      const target = e.currentTarget as HTMLButtonElement;
+
+      target.classList.remove("text-muted");
+      target.classList.add("bg-accent", "text-white");
+
+      const mode = target.getAttribute("data-mode");
+
+      window.dispatchEvent(
+        new CustomEvent("puzzle-mode-change", {
+          detail: { mode },
+        })
+      );
+
+      window.dispatchEvent(new Event("reset-layout-timer"));
+    });
+  });
+
+
+  // ============================================
+  // Timer & Pause Controls
+  // ============================================
+
+  let secondsElapsed = 0;
+  let isPaused = false;
+
+  const timerDisplay =
+    document.getElementById("timer-display");
+
+  const timerToggleBtn =
+    document.getElementById("timer-toggle-btn");
+
+  const pauseIcon =
+    document.getElementById("timer-pause-icon");
+
+  const playIcon =
+    document.getElementById("timer-play-icon");
+
+  const pauseOverlay =
+    document.getElementById("pause-overlay");
+
+  const resumeBtn =
+    document.getElementById("resume-btn");
+
+
+  function updateDisplay() {
+    if (!timerDisplay) return;
+
+    const mins = Math.floor(secondsElapsed / 60)
+      .toString()
+      .padStart(2, "0");
+
+    const secs = (secondsElapsed % 60)
+      .toString()
+      .padStart(2, "0");
+
+    timerDisplay.textContent = `${mins}:${secs}`;
+  }
+
+
+  function togglePause() {
+    isPaused = !isPaused;
+
+    pauseIcon?.classList.toggle("hidden", isPaused);
+    playIcon?.classList.toggle("hidden", !isPaused);
+
+    pauseOverlay?.classList.toggle("hidden", isPaused);
+    pauseOverlay?.classList.toggle("flex", isPaused);
+  }
+
+
+  window.setInterval(() => {
+    if (!isPaused) {
+      secondsElapsed++;
+      updateDisplay();
+    }
+  }, 1000);
+
+
+  window.addEventListener("reset-layout-timer", () => {
+    secondsElapsed = 0;
+    isPaused = false;
+
+    pauseIcon?.classList.remove("hidden");
+    playIcon?.classList.add("hidden");
+
+    pauseOverlay?.classList.add("hidden");
+    pauseOverlay?.classList.remove("flex");
+
+    updateDisplay();
+  });
+
+
+  timerToggleBtn?.addEventListener("click", togglePause);
+  resumeBtn?.addEventListener("click", togglePause);
+
+
+  // ============================================
+  // Help Modal
+  // ============================================
+
+  const helpBtn =
+    document.getElementById("help-btn");
+
+  const closeBtn =
+    document.getElementById("close-modal");
+
+  const modal =
+    document.getElementById("help-modal") as HTMLDialogElement | null;
+
+
+  helpBtn?.addEventListener("click", () => {
+    modal?.showModal();
+
+    if (!isPaused) {
+      togglePause();
+    }
+  });
+
+
+  closeBtn?.addEventListener("click", () => {
+    modal?.close();
+  });
+</script>

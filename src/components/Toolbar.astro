@@ -1,0 +1,88 @@
+---
+import type { PuzzleToolbarConfig } from "../puzzles/puzzles.ts";
+
+interface Props {
+  config: PuzzleToolbarConfig;
+}
+
+const { config } = Astro.props;
+---
+
+<div class="flex items-center gap-2 rounded-2xl bg-ink/5 p-1 sm:gap-3 sm:p-1.5">
+  {
+    config.showUndo && (
+      <button
+        type="button"
+        data-action="undo"
+        class="flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:bg-ink/10 cursor-pointer"
+      >
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+        Undo
+      </button>
+    )
+  }
+
+  {
+    config.showRedo && (
+      <button
+        type="button"
+        data-action="redo"
+        class="flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:bg-ink/10 cursor-pointer"
+      >
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>
+        Redo
+      </button>
+    )
+  }
+
+  {
+    config.showErase && (
+      <button
+        type="button"
+        data-action="erase"
+        class="flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:bg-ink/10 cursor-pointer"
+      >
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16c-1.5-1.5-1.5-3.5 0-5l7-7c1.5-1.5 3.5-1.5 5 0l5 5c1.5 1.5 1.5 3.5 0 5l-5 5z"/></svg>
+        Erase
+      </button>
+    )
+  }
+
+  {
+    config.showHint && (
+      <button
+        type="button"
+        data-action="hint"
+        class="flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:bg-ink/10 cursor-pointer"
+      >
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3z"/></svg>
+        Hint
+      </button>
+    )
+  }
+
+  {
+    config.showReset && (
+      <button
+        type="button"
+        data-action="reset"
+        class="flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:bg-ink/10 cursor-pointer"
+      >
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+        Reset
+      </button>
+    )
+  }
+</div>
+
+<script>
+  document.addEventListener('click', (e) => {
+    const target = (e.target as HTMLElement)?.closest('[data-action]') as HTMLButtonElement | null;
+    if (!target) return;
+
+    const action = target.getAttribute('data-action');
+    if (action) {
+      window.dispatchEvent(new CustomEvent(`puzzle:${action}`));
+    }
+  });
+</script>

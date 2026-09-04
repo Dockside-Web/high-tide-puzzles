@@ -1,0 +1,103 @@
+---
+import type { PuzzleConfig, Difficulty } from "../puzzles";
+import Toolbar from "../../components/Toolbar.astro";
+
+interface Props {
+  puzzle: PuzzleConfig;
+}
+
+const { puzzle } = Astro.props;
+
+const selectedCell = { row: 0, col: 2 };
+const initialGrid = [
+  [5, 3, null, null, 7, null, null, null, null],
+  [6, null, null, 1, 9, 5, null, null, null],
+  [null, 9, 8, null, null, null, null, 6, null],
+  [8, null, null, null, 6, null, null, null, 3],
+  [4, null, null, 8, null, 3, null, null, 1],
+  [7, null, null, null, 2, null, null, null, 6],
+  [null, 6, null, null, null, null, 2, 8, null],
+  [null, null, null, 4, 1, 9, null, null, 5],
+  [null, null, null, null, 8, null, null, 7, 9],
+];
+---
+
+<div class="flex w-full flex-col items-center gap-2 select-none px-1 sm:gap-4">
+  <!-- Grid Layout -->
+  <div class="grid grid-cols-9 overflow-hidden rounded-lg border-2 border-ink bg-surface shadow-md">
+    {
+      initialGrid.map((row, rowIndex) =>
+        row.map((cellValue, colIndex) => {
+          const isSelected = selectedCell.row === rowIndex && selectedCell.col === colIndex;
+          const isGivenNumber = cellValue !== null;
+
+          const borderRight = colIndex % 3 === 2 && colIndex !== 8 ? "border-r-2 border-r-ink" : "border-r border-r-line";
+          const borderBottom = rowIndex % 3 === 2 && rowIndex !== 8 ? "border-b-2 border-b-ink" : "border-b border-b-line";
+
+          return (
+            <button
+              type="button"
+              class={`
+                flex h-[9.5vw] w-[9.5vw] min-h-8 min-w-8 max-h-12 max-w-12 items-center justify-center text-base font-bold transition-colors cursor-pointer sm:h-12 sm:w-12 sm:text-xl touch-none
+                ${borderRight} ${borderBottom}
+                ${isSelected ? "bg-accent/20 text-accent outline-2 -outline-offset-2 outline-accent" : "hover:bg-ink/5"}
+                ${isGivenNumber ? "font-extrabold text-ink" : "font-semibold text-accent"}
+              `}
+            >
+              {cellValue}
+            </button>
+          );
+        })
+      )
+    }
+  </div>
+
+  <!-- Keypad -->
+  <div class="flex w-full max-w-108 justify-between gap-1 px-1 sm:gap-2">
+    {
+      [1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+        <button
+          type="button"
+          class="flex h-9 min-w-0 flex-1 items-center justify-center rounded-lg border border-line bg-surface text-sm font-bold text-ink shadow-sm transition-transform hover:border-accent hover:text-accent active:scale-95 sm:h-11 sm:rounded-xl sm:text-lg cursor-pointer"
+        >
+          {num}
+        </button>
+      ))
+    }
+  </div>
+</div>
+
+<script>
+  const diffTabs = document.querySelectorAll<HTMLButtonElement>('.difficulty-tab');
+  diffTabs.forEach((tab) => {
+    tab.addEventListener('click', (e) => {
+      diffTabs.forEach((t) => t.classList.replace('border-accent', 'border-transparent') && t.classList.replace('text-accent', 'text-muted'));
+      const target = e.currentTarget as HTMLButtonElement;
+      target.classList.replace('border-transparent', 'border-accent');
+      target.classList.replace('text-muted', 'text-accent');
+
+      window.dispatchEvent(new Event('reset-layout-timer'));
+    });
+  });
+
+  function handleUndo() {
+    console.log("Custom Undo running for this puzzle!");
+  }
+
+  function handleRedo() {
+    console.log("Custom Redo running for this puzzle!");
+  }
+
+  function handleHint() {
+    console.log("Custom Hint running!");
+  }
+
+  function handleReset() {
+    console.log("Resetting board!");
+  }
+
+  window.addEventListener('puzzle:undo', handleUndo);
+  window.addEventListener('puzzle:redo', handleRedo);
+  window.addEventListener('puzzle:hint', handleHint);
+  window.addEventListener('puzzle:reset', handleReset);
+</script>

@@ -1,7 +1,7 @@
 ---
 import SectionHeader from "./sectionHeader.astro";
 import { Image } from "astro:assets";
-import { PUZZLE_LIST } from "../../data/puzzles.ts";
+import { PUZZLE_LIST } from "../../puzzles/puzzles.ts";
 
 const today = new Intl.DateTimeFormat('en-US', {
   month: 'long',
@@ -17,7 +17,7 @@ const today = new Intl.DateTimeFormat('en-US', {
       PUZZLE_LIST.map((puzzle) => (
         <li>
           <a
-            href={`/puzzles/${puzzle.slug}`}
+            href={puzzle.slug}
             class="group flex items-center gap-4 rounded-2xl border border-line bg-surface p-5 transition-[border-color,transform,background-color] duration-150 ease-smooth hover:-translate-y-0.5 hover:border-ink/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 dark:hover:border-ink/30"
           >
             <!-- Puzzle Icon -->

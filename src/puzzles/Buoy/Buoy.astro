@@ -1,0 +1,293 @@
+---
+import { Image } from "astro:assets";
+import buoyIcon from "../../assets/puzzle-icons/buoy.png";
+import type { PuzzleConfig } from "../puzzles";
+import { generateDailyPuzzle } from "./buoyGenerator";
+
+interface Props {
+  puzzle: PuzzleConfig;
+  date?: string;
+}
+
+const { date } = Astro.props;
+
+const { colTargets, rowTargets, gridData } = generateDailyPuzzle(date);
+
+function getRegionEdges() {
+  const horizontalEdges: { r: number; c: number }[] = [];
+  const verticalEdges: { r: number; c: number }[] = [];
+
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      const current = gridData[r][c].region;
+      if (r === 0 || gridData[r - 1][c].region !== current) horizontalEdges.push({ r, c });
+      if (r === 8) horizontalEdges.push({ r: 9, c });
+      if (c === 0 || gridData[r][c - 1].region !== current) verticalEdges.push({ r, c });
+      if (c === 8) verticalEdges.push({ r, c: 9 });
+    }
+  }
+
+  return { horizontalEdges, verticalEdges };
+}
+
+const { horizontalEdges, verticalEdges } = getRegionEdges();
+---
+
+<div class="flex max-w-full flex-col items-center gap-1 select-none px-1 sm:gap-1.5">
+  <!-- Top Column Clues -->
+  <div class="flex w-full pl-[20px] sm:pl-[28px] md:pl-[32px] lg:pl-[36px]">
+    <div class="grid grid-cols-9 w-full">
+      {colTargets.map((num) => (
+        <div class="flex items-center justify-center text-xs font-bold text-ink sm:text-base md:text-lg">
+          {num}
+        </div>
+      ))}
+    </div>
+  </div>
+
+  <!-- Board Grid + Row Clues -->
+  <div class="flex items-center gap-1 sm:gap-1.5">
+    <!-- Left Row Clues -->
+    <div class="grid grid-rows-9 w-4 sm:w-6 md:w-7 lg:w-8">
+      {rowTargets.map((num) => (
+        <div class="flex h-[8.5vw] min-h-[32px] max-h-[48px] sm:h-12 sm:max-h-none md:h-13 lg:h-14 items-center justify-center text-xs font-bold text-ink sm:text-base md:text-lg">
+          {num}
+        </div>
+      ))}
+    </div>
+
+    <!-- 9x9 Grid Container -->
+    <div class="relative overflow-hidden rounded-xl border-2 border-line bg-surface shadow-lg">
+      <!-- SVG Layer for Connected Region Lines -->
+      <svg
+        class="pointer-events-none absolute inset-0 z-10 h-full w-full"
+        viewBox="0 0 900 900"
+        preserveAspectRatio="none"
+      >
+        {horizontalEdges.map(({ r, c }) => (
+          <line
+            x1={c * 100}
+            y1={r * 100}
+            x2={(c + 1) * 100}
+            y2={r * 100}
+            stroke="rgb(var(--line))"
+            stroke-width="8"
+            stroke-linecap="square"
+          />
+        ))}
+
+        {verticalEdges.map(({ r, c }) => (
+          <line
+            x1={c * 100}
+            y1={r * 100}
+            x2={c * 100}
+            y2={(r + 1) * 100}
+            stroke="rgb(var(--line))"
+            stroke-width="8"
+            stroke-linecap="square"
+          />
+        ))}
+      </svg>
+
+      <!-- Dynamic Grid Cells -->
+      <div class="grid grid-cols-9">
+        {
+          gridData.map((row, r) =>
+            row.map((cell, c) => (
+              <button
+                type="button"
+                data-cell
+                data-state="0"
+                data-row={r}
+                data-col={c}
+                class="puzzle-cell relative flex h-[8.5vw] w-[8.5vw] min-h-[32px] min-w-[32px] max-h-[48px] max-w-[48px] items-center justify-center transition-colors cursor-pointer bg-surface border border-line/40 touch-none sm:h-12 sm:w-12 sm:max-h-none sm:max-w-none md:h-13 md:w-13 lg:h-14 lg:w-14"
+              >
+                <!-- Corner Region Clue Number -->
+                {cell.count !== null && (
+                  <span class="absolute top-0.5 left-0.5 z-20 text-[9px] font-bold leading-none text-ink/70 sm:top-1 sm:left-1 sm:text-xs md:text-sm pointer-events-none">
+                    {cell.count}
+                  </span>
+                )}
+
+                <!-- State 0 Dot Indicator -->
+                <span data-dot class="h-1 w-1 rounded-full bg-muted/40 pointer-events-none sm:h-1.5 sm:w-1.5 md:h-2 md:w-2" />
+
+                <!-- State 2 Buoy Icon -->
+                <Image
+                  data-buoy
+                  src={buoyIcon}
+                  alt="Buoy"
+                  class="hidden z-20 h-5 w-5 object-contain sm:h-7 sm:w-7 md:h-8 md:w-8 lg:h-9 lg:w-9 pointer-events-none"
+                />
+              </button>
+            ))
+          )
+        }
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  @keyframes buoyPop {
+    0% {
+      transform: scale(0.3);
+      opacity: 0;
+    }
+    70% {
+      transform: scale(1.18);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  .buoy-animate {
+    animation: buoyPop 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  }
+</style>
+
+<script>
+  const cells = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-cell]'));
+
+  const UNSELECTED_BG = 'bg-surface';
+  const FILLED_BG = 'bg-band';
+
+  type BoardState = number[];
+  let history: BoardState[] = [new Array(81).fill(0)];
+  let historyIndex = 0;
+
+  function renderBoard(boardState: BoardState, animateCellIndex: number | null = null) {
+    cells.forEach((cell, index) => {
+      const state = boardState[index];
+      const dot = cell.querySelector<HTMLElement>('[data-dot]');
+      const buoy = cell.querySelector<HTMLElement>('[data-buoy]');
+
+      cell.dataset.state = state.toString();
+
+      if (state === 0) {
+        cell.classList.remove(FILLED_BG);
+        cell.classList.add(UNSELECTED_BG);
+        dot?.classList.remove('hidden');
+        buoy?.classList.add('hidden');
+        buoy?.classList.remove('buoy-animate');
+      } else if (state === 1) {
+        cell.classList.remove(UNSELECTED_BG);
+        cell.classList.add(FILLED_BG);
+        dot?.classList.add('hidden');
+        buoy?.classList.add('hidden');
+        buoy?.classList.remove('buoy-animate');
+      } else if (state === 2) {
+        cell.classList.remove(UNSELECTED_BG);
+        cell.classList.add(FILLED_BG);
+        dot?.classList.add('hidden');
+        
+        if (buoy) {
+          buoy.classList.remove('hidden');
+          if (animateCellIndex === index) {
+            buoy.classList.remove('buoy-animate');
+            void buoy.offsetWidth;
+            buoy.classList.add('buoy-animate');
+          }
+        }
+      }
+    });
+  }
+
+  function getCurrentBoardState(): BoardState {
+    return cells.map((cell) => parseInt(cell.dataset.state || '0', 10));
+  }
+
+  function applyCellChange(cellIndex: number, targetState: number) {
+    const currentState = getCurrentBoardState();
+    if (currentState[cellIndex] === targetState) return;
+
+    currentState[cellIndex] = targetState;
+
+    history = history.slice(0, historyIndex + 1);
+    history.push([...currentState]);
+    historyIndex++;
+
+    renderBoard(currentState, targetState === 2 ? cellIndex : null);
+  }
+
+  let isMouseDown = false;
+  let dragTargetState: number | null = null;
+
+  function handlePointerUp() {
+    isMouseDown = false;
+    dragTargetState = null;
+  }
+
+  window.addEventListener('mouseup', handlePointerUp);
+  window.addEventListener('touchend', handlePointerUp);
+
+  cells.forEach((cell, index) => {
+    cell.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      isMouseDown = true;
+      const currentState = parseInt(cell.dataset.state || '0', 10);
+      dragTargetState = (currentState + 1) % 3;
+
+      applyCellChange(index, dragTargetState);
+    }, { passive: false });
+
+    cell.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      isMouseDown = true;
+
+      const currentState = parseInt(cell.dataset.state || '0', 10);
+      dragTargetState = (currentState + 1) % 3;
+
+      applyCellChange(index, dragTargetState);
+    });
+
+    cell.addEventListener('mouseenter', () => {
+      if (isMouseDown && dragTargetState !== null) {
+        applyCellChange(index, dragTargetState);
+      }
+    });
+  });
+
+  window.addEventListener('touchmove', (e) => {
+    if (!isMouseDown || dragTargetState === null) return;
+    const touch = e.touches[0];
+    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+    const cell = target?.closest('[data-cell]') as HTMLButtonElement | null;
+    if (cell) {
+      const idx = cells.indexOf(cell);
+      if (idx !== -1) applyCellChange(idx, dragTargetState);
+    }
+  }, { passive: true });
+
+  // --- TOOLBAR EVENT LISTENERS ---
+
+  function handleUndo() {
+    if (historyIndex > 0) {
+      historyIndex--;
+      renderBoard(history[historyIndex]);
+    }
+  }
+
+  function handleReset() {
+    if (historyIndex !== 0 || history.length > 1) {
+      history = [new Array(81).fill(0)];
+      historyIndex = 0;
+      renderBoard(history[0]);
+    }
+  }
+
+  function handleHint() {
+    console.log("Hint requested");
+  }
+
+  window.addEventListener('puzzle:undo', handleUndo);
+  window.addEventListener('puzzle:reset', handleReset);
+  window.addEventListener('puzzle:hint', handleHint);
+
+  window.addEventListener('puzzle-difficulty-change', () => {
+    handleReset();
+  });
+</script>

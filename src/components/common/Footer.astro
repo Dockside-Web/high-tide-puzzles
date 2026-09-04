@@ -1,0 +1,44 @@
+---
+import { Image } from "astro:assets";
+import buoyIcon from "../../assets/puzzle-icons/buoy.png";
+import { info } from "../../data/info";
+
+const linkClass = "text-muted transition-colors duration-150 ease-smooth hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60";
+---
+
+<!-- mt-8 / mt-12 adds top margin above footer border; mt-auto keeps sticky behavior -->
+<footer class="mt-8 border-t border-line/70 sm:mt-12">
+  <div class="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-8 sm:py-6">
+    <!-- Left: Logo & Brand Name -->
+    <a
+      href="/"
+      class="inline-flex items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+    >
+      <Image 
+        src={buoyIcon} 
+        alt="Logo" 
+        width={24} 
+        height={24} 
+        class="h-5 w-5 object-contain sm:h-6 sm:w-6" 
+      />
+      <span class="text-xs font-bold tracking-tight text-ink sm:text-base">{info.name}</span>
+    </a>
+
+    <!-- Right: Privacy Policy & Terms of Service -->
+    <nav aria-label="Legal Links">
+      <ul class="flex items-center gap-2 text-xs sm:gap-4 sm:text-sm">
+        <li>
+          <a href="/legal/privacy/" class={linkClass}>
+            Privacy
+          </a>
+        </li>
+        <li class="text-line" aria-hidden="true">|</li>
+        <li>
+          <a href="/legal/terms/" class={linkClass}>
+            Terms
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</footer>

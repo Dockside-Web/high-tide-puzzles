@@ -7,7 +7,13 @@ export default defineConfig({
   site: "https://YOURDOMAIN.com",
   output: "static",
   vite: {
-    plugins: [tailwindcss()],
+    plugins: [tailwindcss()]
   },
   integrations: [sitemap()],
+  server: {
+    watch: {
+      usePolling: true,
+      interval: 100 // checks for saves every 100ms
+    }
+  }
 });
