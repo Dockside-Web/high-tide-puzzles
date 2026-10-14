@@ -1,29 +1,18 @@
 ---
-import PuzzleLayout from "../puzzles/PuzzleLayout.astro";
-import { PUZZLES, type PuzzleConfig } from "../puzzles/puzzles";
+import PuzzleLayout from "../layouts/PuzzleLayout.astro";
+import { PUZZLES } from "../puzzles";
 
+// Only the slug goes through getStaticPaths. Its results are cached in dev, so passing the
+// puzzle config as props would keep serving old components/config after you edit them.
 export function getStaticPaths() {
-  return Object.keys(PUZZLES).map((id) => ({
-    params: { id },
-    props: { puzzle: PUZZLES[id] },
-  }));
+  return Object.keys(PUZZLES).map((id) => ({ params: { id } }));
 }
 
-interface Props {
-  puzzle: PuzzleConfig;
-}
-
-const { puzzle } = Astro.props;
+const puzzle = PUZZLES[Astro.params.id!];
 const ActivePuzzleComponent = puzzle.component;
 ---
 
-<PuzzleLayout
-  name={puzzle.name}
-  icon={puzzle.icon}
-  instructions={puzzle.instructions}
-  difficulties={puzzle.difficulties}
-  toolbar={puzzle.toolbar}
->
+<PuzzleLayout puzzle={puzzle}>
   {
     ActivePuzzleComponent ? (
       <ActivePuzzleComponent puzzle={puzzle} />

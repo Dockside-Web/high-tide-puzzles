@@ -1,0 +1,68 @@
+---
+// Timer pill. Pairs with PauseOverlay, which it shows/hides.
+// Listens for: puzzle:timer-reset, puzzle:pause
+---
+
+<div class="inline-flex items-center gap-1 font-mono text-sm font-bold text-ink sm:text-base">
+  <button
+    id="timer-toggle-btn"
+    type="button"
+    class="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-muted transition-colors hover:bg-ink/5 hover:text-ink"
+    aria-label="Pause timer"
+  >
+    <svg id="timer-pause-icon" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+      <rect x="6" y="4" width="4" height="16" rx="1"></rect>
+      <rect x="14" y="4" width="4" height="16" rx="1"></rect>
+    </svg>
+    <svg id="timer-play-icon" class="hidden h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+      <polygon points="6 3 20 12 6 21 6 3"></polygon>
+    </svg>
+  </button>
+  <span id="timer-display" class="tabular-nums">00:00</span>
+</div>
+
+<script>
+  let secondsElapsed = 0;
+  let isPaused = false;
+
+  const timerDisplay = document.getElementById("timer-display");
+  const timerToggleBtn = document.getElementById("timer-toggle-btn");
+  const pauseIcon = document.getElementById("timer-pause-icon");
+  const playIcon = document.getElementById("timer-play-icon");
+  const pauseOverlay = document.getElementById("pause-overlay");
+  const resumeBtn = document.getElementById("resume-btn");
+
+  function updateDisplay() {
+    if (!timerDisplay) return;
+    const mins = Math.floor(secondsElapsed / 60).toString().padStart(2, "0");
+    const secs = (secondsElapsed % 60).toString().padStart(2, "0");
+    timerDisplay.textContent = `${mins}:${secs}`;
+  }
+
+  function setPaused(paused: boolean) {
+    isPaused = paused;
+    pauseIcon?.classList.toggle("hidden", paused);
+    playIcon?.classList.toggle("hidden", !paused);
+    pauseOverlay?.classList.toggle("hidden", !paused);
+    pauseOverlay?.classList.toggle("flex", paused);
+    timerToggleBtn?.setAttribute("aria-label", paused ? "Resume timer" : "Pause timer");
+  }
+
+  window.setInterval(() => {
+    if (!isPaused) {
+      secondsElapsed++;
+      updateDisplay();
+    }
+  }, 1000);
+
+  window.addEventListener("puzzle:timer-reset", () => {
+    secondsElapsed = 0;
+    setPaused(false);
+    updateDisplay();
+  });
+
+  window.addEventListener("puzzle:pause", () => setPaused(true));
+
+  timerToggleBtn?.addEventListener("click", () => setPaused(!isPaused));
+  resumeBtn?.addEventListener("click", () => setPaused(false));
+</script>

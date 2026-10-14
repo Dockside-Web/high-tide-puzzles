@@ -1,0 +1,25 @@
+---
+import BuoyIcon from "../../puzzles/Buoy/buoy.svg";
+
+// "HIGH TIDE (buoy) PUZZLES". Built from live text + the Buoy icon instead of an image,
+// so it has a light version (navy text) and a dark version (white text) that follow the theme.
+// Size it with a font-size class, e.g. class="text-2xl".
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<span
+  class:list={[
+    "inline-flex items-center gap-[0.12em] font-logo leading-none font-bold tracking-[0.03em] whitespace-nowrap text-[#13294b] uppercase dark:text-white",
+    className,
+  ]}
+  role="img"
+  aria-label="High Tide Puzzles"
+>
+  <span aria-hidden="true">High Tide</span>
+  <BuoyIcon class="h-[1.85em] w-[1.85em] shrink-0" aria-hidden="true" />
+  <span aria-hidden="true">Puzzles</span>
+</span>

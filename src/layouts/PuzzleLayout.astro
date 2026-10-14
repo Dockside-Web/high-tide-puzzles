@@ -1,0 +1,59 @@
+---
+import Layout from "./Layout.astro";
+import PuzzleHeader from "../components/puzzle/PuzzleHeader.astro";
+import PuzzleControls from "../components/puzzle/PuzzleControls.astro";
+import PauseOverlay from "../components/puzzle/PauseOverlay.astro";
+import Toolbar from "../components/puzzle/Toolbar.astro";
+import HelpModal from "../components/puzzle/HelpModal.astro";
+import { puzzleColorStyle, type PuzzleConfig } from "../puzzles/types";
+
+// Shared wrapper for every puzzle page. The puzzle itself goes in the slot;
+// everything around it is switched on/off by the puzzle's config.
+
+interface Props {
+  puzzle: PuzzleConfig;
+}
+
+const { puzzle } = Astro.props;
+const {
+  name,
+  icon,
+  color,
+  instructions,
+  difficulties = [],
+  plusMode = false,
+  timer = true,
+  settings = true,
+  toolbar,
+} = puzzle;
+
+const hasControls = plusMode || difficulties.length > 0 || timer;
+---
+
+<Layout title={name} description={`Play today's ${name} puzzle.`} compact>
+  <div class="flex w-full flex-col px-3 pb-4 sm:px-6" style={puzzleColorStyle(color)}>
+    <div class="mx-auto w-full max-w-3xl">
+      <PuzzleHeader name={name} icon={icon} showSettings={settings} />
+
+      {hasControls && (
+        <div class="mt-2">
+          <PuzzleControls plusMode={plusMode} difficulties={difficulties} showTimer={timer} />
+        </div>
+      )}
+    </div>
+
+    <!-- Board (allowed to be wider than the header for wide puzzles) -->
+    <div class="relative mx-auto mt-6 flex w-full max-w-6xl flex-col items-center sm:mt-9">
+      <slot />
+      {timer && <PauseOverlay />}
+    </div>
+
+    {toolbar && (
+      <div class="mt-6 sm:mt-8">
+        <Toolbar config={toolbar} />
+      </div>
+    )}
+
+    <HelpModal name={name} icon={icon} instructions={instructions} />
+  </div>
+</Layout>

@@ -1,0 +1,369 @@
+---
+import type { PuzzleConfig } from "../types";
+
+interface Props {
+  puzzle: PuzzleConfig;
+  date?: string;
+}
+
+// ---------- Dummy puzzle (frontend only) ----------
+// Each tile is a square split into 4 triangles: [top, right, bottom, left].
+// K = black, S = seafoam, O = ocean, Y = sun, C = coral.
+// The solution is described by the colors of the edges *between* tiles; every outer edge is black.
+const ROWS = 4;
+const COLS = 7;
+
+// Color of the edge between (r, c) and (r, c + 1)
+const sideEdges = [
+  "SSSYYO",
+  "SSYYOO",
+  "CSYYOO",
+  "CSOOOY",
+];
+
+// Color of the edge between (r, c) and (r + 1, c)
+const stackEdges = [
+  "SSSYYOY",
+  "YYSYOOO",
+  "CSSOOOY",
+];
+
+const solvedTiles = Array.from({ length: ROWS * COLS }, (_, i) => {
+  const r = Math.floor(i / COLS);
+  const c = i % COLS;
+  const top = r === 0 ? "K" : stackEdges[r - 1][c];
+  const bottom = r === ROWS - 1 ? "K" : stackEdges[r][c];
+  const left = c === 0 ? "K" : sideEdges[r][c - 1];
+  const right = c === COLS - 1 ? "K" : sideEdges[r][c];
+  return top + right + bottom + left;
+});
+
+// Scramble the tiles into the bank (11 shares no factor with 28, so this visits every tile once)
+const bankTiles = solvedTiles.map((_, i) => solvedTiles[(i * 11) % solvedTiles.length]);
+
+// Triangles in a 100x100 tile, in [top, right, bottom, left] order
+const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,50", "0,0 0,100 50,50"];
+---
+
+<!--
+  Interaction: drag tiles from the bank onto the board (or between any two spaces).
+  Dropping on a space that already has a tile swaps the two. Tiles never rotate.
+  Solved when the board is full, every touching edge matches, and only the outside edges are black.
+-->
+<div class="sea-glass" data-sea-glass-root data-rows={ROWS} data-cols={COLS} style={`--cols: ${COLS}`}>
+  <!-- Board -->
+  <div class="sea-glass__board" data-board>
+    {Array.from({ length: ROWS * COLS }, (_, i) => (
+      <div class="sea-glass__slot" data-slot data-area="board" data-index={i}></div>
+    ))}
+  </div>
+
+  <p class="sea-glass__solved" data-solved-message hidden>Solved!</p>
+
+  <!-- Bank -->
+  <div class="sea-glass__bank" data-bank>
+    {bankTiles.map((edges, i) => (
+      <div class="sea-glass__slot" data-slot data-area="bank" data-index={i}>
+        <button type="button" class="sea-glass__tile" data-tile data-edges={edges} aria-label="Tile">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            {triangles.map((points, side) => (
+              <polygon points={points} class={`sea-glass__tri sea-glass__tri--${edges[side]}`} />
+            ))}
+          </svg>
+        </button>
+      </div>
+    ))}
+  </div>
+</div>
+
+<style>
+  .sea-glass {
+    --black: 24 30 40;
+    /* Tiles size to fit both the screen width and height (board + bank stacked) */
+    --cell: clamp(2.2rem, min(calc((100vw - 2.5rem) / (var(--cols) + 0.6)), calc((100dvh - 22rem) / 8.6)), 4.5rem);
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :global(.dark) .sea-glass {
+    --black: 3 7 13;
+  }
+
+  .sea-glass__board,
+  .sea-glass__bank {
+    display: grid;
+    grid-template-columns: repeat(var(--cols), var(--cell));
+    grid-auto-rows: var(--cell);
+    gap: 0;
+    padding: 6px;
+    border-radius: 0.875rem;
+  }
+
+  .sea-glass__board {
+    background: rgb(var(--surface));
+    border: 1px solid rgb(var(--line));
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .sea-glass__bank {
+    background: rgb(var(--ink) / 0.04);
+    border: 1px dashed rgb(var(--line));
+  }
+
+  .sea-glass.is-solved .sea-glass__board {
+    border-color: rgb(var(--puzzle-strong));
+    box-shadow: 0 0 0 3px rgb(var(--puzzle) / 0.25);
+  }
+
+  .sea-glass__solved {
+    margin: -0.25rem 0;
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    font-weight: 700;
+    color: rgb(var(--puzzle-strong));
+  }
+
+  .sea-glass__slot {
+    position: relative;
+    box-shadow: inset 0 0 0 0.5px rgb(var(--ink) / 0.12); /* faint lines between empty spaces */
+    background: rgb(var(--ink) / 0.06);
+  }
+
+  /* Drawn above any tile in the space */
+  .sea-glass__slot.is-drop-target::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    box-shadow: inset 0 0 0 3px rgb(var(--puzzle-strong));
+    pointer-events: none;
+  }
+
+  .sea-glass__tile {
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    background: none;
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .sea-glass__tile:active {
+    cursor: grabbing;
+  }
+
+  .sea-glass__tile.is-dragging {
+    opacity: 0.25;
+  }
+
+  .sea-glass__tile svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .sea-glass__tri {
+    stroke: rgb(0 0 0 / 0.18);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .sea-glass__tri--K { fill: rgb(var(--black)); }
+  .sea-glass__tri--S { fill: rgb(var(--seafoam)); }
+  .sea-glass__tri--O { fill: rgb(var(--ocean)); }
+  .sea-glass__tri--Y { fill: rgb(var(--sun)); }
+  .sea-glass__tri--C { fill: rgb(var(--coral)); }
+
+  /* A triangle touching the wrong thing flashes white 3 times, then returns to its own color */
+  .sea-glass__tri.is-wrong {
+    animation: sea-glass-flash 0.3s ease-in-out 3;
+  }
+
+  @keyframes sea-glass-flash {
+    50% { fill: #fff; }
+  }
+
+  /* Dragged copy follows the pointer exactly (no easing) */
+  :global(.sea-glass__ghost) {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    z-index: 9999 !important;
+    pointer-events: none !important;
+    transition: none !important;
+    will-change: transform;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+  }
+</style>
+
+<script>
+  function initSeaGlass(root: HTMLElement) {
+    const rows = Number(root.dataset.rows);
+    const cols = Number(root.dataset.cols);
+    const boardSlots = Array.from(root.querySelectorAll<HTMLElement>('[data-area="board"]'));
+    const tiles = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-tile]"));
+    const solvedMessage = root.querySelector<HTMLElement>("[data-solved-message]");
+    const homeSlot = new Map(tiles.map((t) => [t, t.parentElement as HTMLElement]));
+
+    const tileIn = (slot: HTMLElement) => slot.querySelector<HTMLButtonElement>("[data-tile]");
+
+    const bankTiles = () => Array.from(root.querySelectorAll<HTMLElement>('[data-area="bank"] [data-tile]'));
+    const OUTSIDE = "outside";
+
+    /**
+     * Is one side of a tile touching the wrong thing?
+     * - Facing the outside of the board: must be black.
+     * - Facing another tile: colors must match, and black never belongs inside the board.
+     * - Facing an empty space: nothing to check yet.
+     */
+    function sideIsWrong(mine: string, theirs: string | null) {
+      if (theirs === null) return false;
+      if (theirs === OUTSIDE) return mine !== "K";
+      return mine === "K" || mine !== theirs;
+    }
+
+    /** Re-check every board tile, mark wrong triangles, and detect a finished board. */
+    function update() {
+      const edges = boardSlots.map((slot) => tileIn(slot)?.dataset.edges ?? null);
+      let anyWrong = false;
+
+      boardSlots.forEach((slot, i) => {
+        const tile = tileIn(slot);
+        const mine = edges[i];
+        if (!tile || !mine) return;
+
+        const r = Math.floor(i / cols);
+        const c = i % cols;
+        // What each side faces, in [top, right, bottom, left] order (the neighbour's touching side)
+        const facing = [
+          r === 0 ? OUTSIDE : edges[i - cols]?.[2] ?? null,
+          c === cols - 1 ? OUTSIDE : edges[i + 1]?.[3] ?? null,
+          r === rows - 1 ? OUTSIDE : edges[i + cols]?.[0] ?? null,
+          c === 0 ? OUTSIDE : edges[i - 1]?.[1] ?? null,
+        ];
+
+        tile.querySelectorAll(".sea-glass__tri").forEach((tri, side) => {
+          const wrong = sideIsWrong(mine[side], facing[side]);
+          tri.classList.toggle("is-wrong", wrong);
+          if (wrong) anyWrong = true;
+        });
+      });
+
+      // Tiles in the bank are never marked
+      bankTiles().forEach((tile) => {
+        tile.querySelectorAll(".is-wrong").forEach((tri) => tri.classList.remove("is-wrong"));
+      });
+
+      const solved = edges.every((e) => e !== null) && !anyWrong;
+      root.classList.toggle("is-solved", solved);
+      if (solvedMessage) solvedMessage.hidden = !solved;
+    }
+
+
+    // ---------- Drag ----------
+    tiles.forEach((tile) => {
+      let pointerId: number | null = null;
+      let startX = 0;
+      let startY = 0;
+      let moved = false;
+      let ghost: HTMLElement | null = null;
+      let dx = 0;
+      let dy = 0;
+      let overSlot: HTMLElement | null = null;
+
+      function slotUnder(x: number, y: number) {
+        const slot = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-slot]");
+        return slot && root.contains(slot) ? slot : null;
+      }
+
+      function setOver(slot: HTMLElement | null) {
+        if (slot === overSlot) return;
+        overSlot?.classList.remove("is-drop-target");
+        overSlot = slot;
+        overSlot?.classList.add("is-drop-target");
+      }
+
+      function cleanup() {
+        ghost?.remove();
+        ghost = null;
+        tile.classList.remove("is-dragging");
+        setOver(null);
+      }
+
+      tile.addEventListener("pointerdown", (e) => {
+        pointerId = e.pointerId;
+        startX = e.clientX;
+        startY = e.clientY;
+        moved = false;
+        tile.setPointerCapture(pointerId);
+      });
+
+      tile.addEventListener("pointermove", (e) => {
+        if (pointerId === null || e.pointerId !== pointerId) return;
+
+        if (!moved && Math.hypot(e.clientX - startX, e.clientY - startY) > 3) {
+          moved = true;
+          const rect = tile.getBoundingClientRect();
+          // Keep the tile where it was grabbed relative to the pointer, so nothing jumps
+          dx = rect.left - startX;
+          dy = rect.top - startY;
+          ghost = tile.cloneNode(true) as HTMLElement;
+          ghost.classList.add("sea-glass__ghost");
+          ghost.querySelectorAll(".is-wrong").forEach((tri) => tri.classList.remove("is-wrong"));
+          ghost.style.width = `${rect.width}px`;
+          ghost.style.height = `${rect.height}px`;
+          ghost.style.transform = `translate3d(${e.clientX + dx}px, ${e.clientY + dy}px, 0)`;
+          document.body.appendChild(ghost);
+          tile.classList.add("is-dragging");
+        }
+
+        if (!moved || !ghost) return;
+        ghost.style.transform = `translate3d(${e.clientX + dx}px, ${e.clientY + dy}px, 0)`;
+        setOver(slotUnder(e.clientX, e.clientY));
+      });
+
+      tile.addEventListener("pointerup", (e) => {
+        if (pointerId === null || e.pointerId !== pointerId) return;
+        tile.releasePointerCapture(pointerId);
+        pointerId = null;
+        if (!moved) return;
+
+        const target = slotUnder(e.clientX, e.clientY);
+        const from = tile.parentElement as HTMLElement;
+        cleanup();
+        moved = false;
+
+        if (!target || target === from) return;
+        // Swap with whatever is already in the target space
+        const other = tileIn(target);
+        target.appendChild(tile);
+        if (other) from.appendChild(other);
+        update();
+      });
+
+      tile.addEventListener("pointercancel", () => {
+        pointerId = null;
+        moved = false;
+        cleanup();
+      });
+    });
+
+    // ---------- Toolbar ----------
+    window.addEventListener("puzzle:reset", () => {
+      tiles.forEach((t) => homeSlot.get(t)!.appendChild(t));
+      update();
+    });
+
+    update();
+  }
+
+  document.querySelectorAll<HTMLElement>("[data-sea-glass-root]").forEach(initSeaGlass);
+</script>
+

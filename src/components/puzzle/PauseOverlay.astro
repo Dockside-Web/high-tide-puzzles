@@ -1,0 +1,25 @@
+---
+// Covers the board while the timer is paused. Shown/hidden by Timer.astro.
+---
+
+<div
+  id="pause-overlay"
+  class="absolute inset-0 z-30 hidden flex-col items-center justify-center rounded-2xl bg-canvas/80 backdrop-blur-md"
+>
+  <div class="flex flex-col items-center gap-3 text-center">
+    <span class="grid h-14 w-14 place-items-center rounded-full bg-puzzle/20 text-puzzle-strong">
+      <svg class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
+        <rect x="6" y="4" width="4" height="16" rx="1"></rect>
+        <rect x="14" y="4" width="4" height="16" rx="1"></rect>
+      </svg>
+    </span>
+    <p class="font-display text-xl font-bold text-ink sm:text-2xl">Puzzle Paused</p>
+    <button
+      id="resume-btn"
+      type="button"
+      class="cursor-pointer rounded-full bg-puzzle-strong px-6 py-2 text-sm font-semibold text-on-color shadow-md transition-transform hover:scale-105"
+    >
+      Resume
+    </button>
+  </div>
+</div>

@@ -1,0 +1,43 @@
+---
+import type { SvgComponent } from "astro/types";
+
+interface Props {
+  name: string;
+  icon: SvgComponent;
+  instructions: string;
+}
+
+const { name, icon: Icon, instructions } = Astro.props;
+---
+
+<dialog
+  id="help-modal"
+  class="m-auto w-[90vw] max-w-md overflow-hidden rounded-2xl bg-surface p-0 text-ink shadow-xl ring-1 ring-puzzle/30 backdrop:bg-ink/50 backdrop:backdrop-blur-sm"
+>
+  <div class="flex items-center gap-3 border-b border-puzzle/25 bg-puzzle/15 px-5 pt-5 pb-4 sm:px-6">
+    <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface shadow-sm">
+      <Icon class="h-6 w-6" aria-hidden="true" />
+    </span>
+    <h2 class="flex-1 font-display text-lg font-bold sm:text-xl">How to play {name}</h2>
+    <button id="close-modal" type="button" class="cursor-pointer rounded-full p-1 text-muted hover:bg-surface hover:text-ink" aria-label="Close help">
+      <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <path d="M18 6L6 18M6 6l12 12"></path>
+      </svg>
+    </button>
+  </div>
+
+  <p class="px-5 pt-3 pb-6 text-sm leading-relaxed text-muted sm:px-6">
+    {instructions}
+  </p>
+</dialog>
+
+<script>
+  const modal = document.getElementById("help-modal") as HTMLDialogElement | null;
+
+  document.getElementById("help-btn")?.addEventListener("click", () => {
+    modal?.showModal();
+    window.dispatchEvent(new Event("puzzle:pause"));
+  });
+
+  document.getElementById("close-modal")?.addEventListener("click", () => modal?.close());
+</script>

@@ -1,0 +1,56 @@
+---
+import { PUZZLE_LIST } from "../../puzzles";
+import { puzzleColorStyle, type PuzzleConfig } from "../../puzzles/types";
+
+const today = new Intl.DateTimeFormat("en-US", {
+  weekday: "long",
+  month: "long",
+  day: "numeric",
+}).format(new Date());
+
+function difficultyText(puzzle: Pick<PuzzleConfig, "difficulties">) {
+  return puzzle.difficulties?.map((d) => d.label).join(" · ") ?? "";
+}
+---
+
+<section id="puzzles" aria-labelledby="puzzles-heading" class="mx-auto w-full max-w-6xl scroll-mt-24 px-6 pt-6 sm:px-8 sm:pt-10">
+  <div class="flex items-baseline justify-between gap-4">
+    <h1 id="puzzles-heading" class="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+      Today's puzzles
+    </h1>
+    <p class="text-sm font-medium text-muted">{today}</p>
+  </div>
+
+  <!-- Neutral rows that take on the puzzle's color when hovered -->
+  <ul class="mt-6 grid grid-cols-1 gap-3 lg:grid-cols-2">
+    {PUZZLE_LIST.map(({ icon: Icon, ...puzzle }) => (
+      <li style={puzzleColorStyle(puzzle.color)}>
+        <a
+          href={puzzle.slug}
+          class="group flex items-center gap-4 rounded-2xl bg-surface px-4 py-3.5 ring-1 ring-line transition-[background-color,box-shadow] duration-200 ease-smooth hover:bg-puzzle/10 hover:ring-puzzle/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-puzzle"
+        >
+          <Icon
+            class="h-11 w-11 shrink-0 transition-transform duration-200 ease-smooth group-hover:scale-105"
+            aria-hidden="true"
+          />
+
+          <span class="min-w-0 flex-1">
+            <span class="flex items-center gap-2">
+              <span class="truncate font-display text-base font-semibold text-ink sm:text-lg">{puzzle.name}</span>
+              {puzzle.isNew && (
+                <span class="shrink-0 rounded-full bg-coral/15 px-2 py-0.5 text-[11px] font-semibold text-coral-strong">New</span>
+              )}
+            </span>
+            {difficultyText(puzzle) && (
+              <span class="block truncate text-sm text-muted">{difficultyText(puzzle)}</span>
+            )}
+          </span>
+
+          <svg class="h-5 w-5 shrink-0 text-muted/60 transition-[color,transform] duration-200 ease-smooth group-hover:translate-x-1 group-hover:text-puzzle-strong" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 18l6-6-6-6"></path>
+          </svg>
+        </a>
+      </li>
+    ))}
+  </ul>
+</section>

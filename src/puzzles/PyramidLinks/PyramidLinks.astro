@@ -1,0 +1,492 @@
+---
+import type { PuzzleConfig } from "../types";
+
+interface Props {
+  puzzle?: PuzzleConfig;
+  date?: string;
+}
+
+// 1-2-4-8 Pyramid Tree Data (15 Total Items)
+const pyramidNodes = [
+  /* Row 0 (1) */ { id: 0, row: 0, text: "HOT" },
+  /* Row 1 (2) */ { id: 1, row: 1, text: "DOG" },
+                  { id: 2, row: 1, text: "WATER" },
+  /* Row 2 (4) */ { id: 3, row: 2, text: "HOUSE" },
+                  { id: 4, row: 2, text: "FOOD" },
+                  { id: 5, row: 2, text: "FALL" },
+                  { id: 6, row: 2, text: "PARK" },
+  /* Row 3 (8) */ { id: 7, row: 3, text: "PARTY" },
+                  { id: 8, row: 3, text: "CAT" },
+                  { id: 9, row: 3, text: "TRUCK" },
+                  { id: 10, row: 3, text: "COURT" },
+                  { id: 11, row: 3, text: "GUY" },
+                  { id: 12, row: 3, text: "OUT" },
+                  { id: 13, row: 3, text: "BENCH" },
+                  { id: 14, row: 3, text: "PLACE" },
+];
+
+const edges = pyramidNodes
+  .filter((n) => n.row < 3)
+  .flatMap((n) => [
+    { parentId: n.id, childId: 2 * n.id + 1, isLeft: true },
+    { parentId: n.id, childId: 2 * n.id + 2, isLeft: false },
+  ]);
+
+const rows = [0, 1, 2, 3].map((r) => pyramidNodes.filter((n) => n.row === r));
+---
+
+<!--
+  Interaction:
+  - Lines are clicked to toggle them on, linking those two words.
+  - Words (tiles) are drag-only, with no selected state. Dragging a linked word carries its whole
+    linked group, which can only land on its own spaces or unlinked words (those slide into the
+    spaces the group left). A word may switch to the other side under its parent if needed.
+-->
+<div class="pyramid" data-puzzle-root>
+  <svg class="pyramid__lines" data-edges-svg aria-hidden="true">
+    {edges.map(({ parentId, childId, isLeft }) => (
+      <g data-edge-group data-parent={parentId} data-child={childId} data-is-left={isLeft ? "true" : "false"}>
+        <path data-edge class="pyramid__edge" />
+        <path data-edge-hit class="pyramid__edge-hit" />
+      </g>
+    ))}
+  </svg>
+
+  <div class="pyramid__rows">
+    {rows.map((rowNodes, rowIdx) => (
+      <div class="pyramid__row" data-row={rowIdx} style={`--cols: ${rowNodes.length}`}>
+        {rowNodes.map((node) => (
+          <button
+            type="button"
+            data-tile
+            data-id={node.id}
+            data-row={rowIdx}
+            class="pyramid__tile"
+          >
+            <span data-text>{node.text}</span>
+          </button>
+        ))}
+      </div>
+    ))}
+  </div>
+</div>
+
+<style>
+  .pyramid {
+    --line-idle: rgb(var(--ink) / 0.2);
+    --line-hover: rgb(var(--ink) / 0.45);
+    --line-active: rgb(var(--sun));
+    --drop: var(--coral-strong);
+    --gap: clamp(0.25rem, 0.8vw, 0.6rem);
+
+    position: relative;
+    width: 100%;
+    padding: clamp(0.75rem, 2vw, 1.5rem) 0;
+    box-sizing: border-box;
+  }
+
+  .pyramid__lines {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Wide invisible stroke so lines are easy to click */
+  .pyramid__edge-hit {
+    fill: none;
+    stroke: transparent;
+    stroke-width: 22px;
+    stroke-linecap: round;
+    pointer-events: stroke;
+    cursor: pointer;
+  }
+
+  .pyramid__edge {
+    fill: none;
+    stroke: var(--line-idle);
+    stroke-width: 2;
+    stroke-linecap: round;
+    pointer-events: none;
+    transition: stroke 0.15s ease, stroke-width 0.15s ease;
+  }
+
+  [data-edge-group]:hover .pyramid__edge {
+    stroke: var(--line-hover);
+    stroke-width: 2.5;
+  }
+
+  [data-edge-group].is-active .pyramid__edge {
+    stroke: var(--line-active);
+    stroke-width: 4;
+  }
+
+  /* Rows are a container so tiles can size off the full board width */
+  .pyramid__rows {
+    position: relative;
+    z-index: 1;
+    pointer-events: none; /* let clicks reach the lines behind; tiles opt back in */
+    container-type: inline-size;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: clamp(1.75rem, 5vh, 3.25rem);
+  }
+
+  /* Each row splits the width into equal columns with the same gap,
+     which puts every parent exactly centered over its two children */
+  .pyramid__row {
+    display: grid;
+    grid-template-columns: repeat(var(--cols), 1fr);
+    column-gap: var(--gap);
+    justify-items: center;
+  }
+
+  .pyramid__tile {
+    position: relative;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* Every tile is the width of a bottom-row column */
+    width: calc((100cqw - 7 * var(--gap)) / 8);
+    height: clamp(2.5rem, 6.5cqw, 4rem);
+    padding: 0 0.25rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: rgb(var(--ink));
+    background: rgb(var(--surface));
+    border: 1px solid rgb(var(--ink) / 0.14);
+    border-radius: 10px;
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    font-size: clamp(0.55rem, 2.1cqw, 1.2rem);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    cursor: grab;
+    touch-action: none;
+    pointer-events: auto;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: border-color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+  }
+
+  .pyramid__tile:focus {
+    outline: none;
+  }
+
+  .pyramid__tile:active {
+    cursor: grabbing;
+  }
+
+  .pyramid__tile.is-drop-target {
+    border-color: rgb(var(--drop));
+    background: color-mix(in srgb, rgb(var(--drop)) 14%, rgb(var(--surface)));
+  }
+
+  .pyramid__tile.is-dragging {
+    opacity: 0.3;
+  }
+
+  /* Fixed CSS for smooth dragging without top-left jump */
+  :global(.pyramid__drag-ghost) {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    z-index: 9999 !important;
+    pointer-events: none !important;
+    margin: 0 !important;
+    will-change: transform;
+    transition: none !important; /* follow the pointer exactly, no easing */
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+  }
+</style>
+
+<script>
+  function initPyramid(root: HTMLElement) {
+    const svg = root.querySelector<SVGSVGElement>("[data-edges-svg]");
+    const tiles = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-tile]"));
+    if (!svg) return;
+
+    const edgeGroups = Array.from(root.querySelectorAll<SVGGElement>("[data-edge-group]"));
+
+    function tileById(id: number) {
+      return tiles.find((t) => Number(t.dataset.id) === id) ?? null;
+    }
+
+    function drawEdges() {
+      const rootRect = root.getBoundingClientRect();
+      if (rootRect.width === 0 || rootRect.height === 0) return;
+
+      svg!.setAttribute("viewBox", `0 0 ${rootRect.width} ${rootRect.height}`);
+
+      edgeGroups.forEach((group) => {
+        const a = tileById(Number(group.dataset.parent));
+        const b = tileById(Number(group.dataset.child));
+        if (!a || !b) return;
+
+        const ra = a.getBoundingClientRect();
+        const rb = b.getBoundingClientRect();
+
+        // A parent's two links form one smooth arch that passes behind the parent:
+        // each half starts at the parent's center (hidden under the tile) and lands
+        // on the child's top center. So where a line comes out of the tile's side
+        // it's already curving down — no flat start or elbow.
+        const x1 = ra.left + ra.width / 2 - rootRect.left;
+        const y1 = ra.top + ra.height * 0.4 - rootRect.top;
+
+        const x2 = rb.left + rb.width / 2 - rootRect.left;
+        const y2 = rb.top - rootRect.top + 2; // tuck just under the child's top edge
+
+        const k = 0.5523; // bezier constant for a quarter-ellipse
+        const c1x = x1 + (x2 - x1) * k;
+        const c2y = y2 - (y2 - y1) * k;
+
+        const pathData = `M ${x1} ${y1} C ${c1x} ${y1}, ${x2} ${c2y}, ${x2} ${y2}`;
+
+        group.querySelectorAll("path").forEach((path) => {
+          path.setAttribute("d", pathData);
+        });
+      });
+    }
+
+    // ---------- Board state ----------
+    // Positions are heap-indexed: 0 is the top, children of p are 2p+1 (left) and 2p+2 (right).
+    // A link is stored by its child position (every position below the top has exactly one parent).
+    const LAST = tiles.length - 1;
+    const words = tiles.map((t) => t.querySelector("[data-text]")?.textContent ?? "");
+    const links = new Set<number>();
+
+    const parentOf = (p: number) => (p - 1) >> 1;
+    const tileAt = (p: number) => tileById(p)!;
+
+    function render() {
+      tiles.forEach((tile) => {
+        const text = tile.querySelector("[data-text]");
+        if (text) text.textContent = words[Number(tile.dataset.id)];
+      });
+      edgeGroups.forEach((group) => {
+        group.classList.toggle("is-active", links.has(Number(group.dataset.child)));
+      });
+    }
+
+    /** All positions joined to p by links (just [p] if it's a loose card). Sorted, so the group's root is first. */
+    function groupOf(p: number) {
+      const seen = new Set([p]);
+      const queue = [p];
+      while (queue.length) {
+        const q = queue.pop()!;
+        const neighbors = [2 * q + 1, 2 * q + 2].filter((c) => c <= LAST && links.has(c));
+        if (q > 0 && links.has(q)) neighbors.push(parentOf(q));
+        for (const n of neighbors) {
+          if (!seen.has(n)) {
+            seen.add(n);
+            queue.push(n);
+          }
+        }
+      }
+      return [...seen].sort((a, b) => a - b);
+    }
+
+    /**
+     * Where would `group` go if the card at `grabbed` were dropped on `target`?
+     * Links must stay parent -> child, and the group may only land on its own spaces or loose cards.
+     * A card may switch to the other side under its parent if needed; layouts with the
+     * fewest switches win. Returns old position -> new position, or null if nothing fits.
+     */
+    function planMove(group: number[], grabbed: number, target: number) {
+      const inGroup = new Set(group);
+      const isFree = (q: number) => q <= LAST && (inGroup.has(q) || groupOf(q).length === 1);
+      let best: Map<number, number> | null = null;
+      let bestFlips = Infinity;
+
+      // Place p at q, then its linked children (same side first), backtracking through every option
+      function place(order: number[], i: number, mapping: Map<number, number>, used: Set<number>, flips: number) {
+        if (flips >= bestFlips) return;
+        if (i === order.length) {
+          if (mapping.get(grabbed) === target) {
+            best = new Map(mapping);
+            bestFlips = flips;
+          }
+          return;
+        }
+        const p = order[i];
+        const parentSpot = mapping.get(parentOf(p))!;
+        const sameSide = p % 2 === 1 ? 1 : 2;
+        for (const side of [sameSide, 3 - sameSide]) {
+          const q = 2 * parentSpot + side;
+          if (!isFree(q) || used.has(q)) continue;
+          mapping.set(p, q);
+          used.add(q);
+          place(order, i + 1, mapping, used, flips + (side === sameSide ? 0 : 1));
+          used.delete(q);
+          mapping.delete(p);
+        }
+      }
+
+      const [groupRoot, ...rest] = group; // sorted, so parents always come before children
+      for (let newRoot = 0; newRoot <= LAST; newRoot++) {
+        if (!isFree(newRoot)) continue;
+        place(rest, 0, new Map([[groupRoot, newRoot]]), new Set([newRoot]), 0);
+      }
+      return best as Map<number, number> | null; // assigned inside place()
+    }
+
+    function applyMove(group: number[], mapping: Map<number, number>) {
+      const targets = new Set(mapping.values());
+      const vacated = group.filter((p) => !targets.has(p));
+      const displaced = [...targets].filter((p) => !group.includes(p)).sort((a, b) => a - b);
+
+      const next = words.slice();
+      // Loose cards that were in the way slide into the spaces the group left
+      displaced.forEach((p, i) => (next[vacated[i]] = words[p]));
+      group.forEach((p) => (next[mapping.get(p)!] = words[p]));
+      words.splice(0, words.length, ...next);
+
+      // The group's links move with it (every member except its root links to its parent)
+      const groupLinks = group.slice(1);
+      groupLinks.forEach((p) => links.delete(p));
+      groupLinks.forEach((p) => links.add(mapping.get(p)!));
+
+      render();
+    }
+
+    // ---------- Lines: click to toggle the link between two words ----------
+    edgeGroups.forEach((group) => {
+      group.querySelector("[data-edge-hit]")?.addEventListener("click", () => {
+        const child = Number(group.dataset.child);
+        if (links.has(child)) links.delete(child);
+        else links.add(child);
+        render();
+      });
+    });
+
+    // ---------- Tiles: drag-only. Dragging a linked card carries its whole group ----------
+    tiles.forEach((tile) => {
+      const grabbed = Number(tile.dataset.id);
+      let pointerId: number | null = null;
+      let startX = 0;
+      let startY = 0;
+      let moved = false;
+      let group: number[] = [];
+      let ghosts: { el: HTMLElement; dx: number; dy: number }[] = [];
+      let plan: Map<number, number> | null = null;
+      let lastTarget: number | null = null;
+
+      function clearPreview() {
+        tiles.forEach((t) => t.classList.remove("is-drop-target"));
+      }
+
+      function cleanup() {
+        ghosts.forEach((g) => g.el.remove());
+        ghosts = [];
+        group.forEach((p) => tileAt(p).classList.remove("is-dragging"));
+        clearPreview();
+        plan = null;
+        lastTarget = null;
+      }
+
+      function targetUnder(x: number, y: number) {
+        const el = document.elementFromPoint(x, y)?.closest<HTMLButtonElement>("[data-tile]");
+        return el && root.contains(el) ? Number(el.dataset.id) : null;
+      }
+
+      function moveGhosts(x: number, y: number) {
+        ghosts.forEach((g) => {
+          g.el.style.transform = `translate3d(${x + g.dx}px, ${y + g.dy}px, 0)`;
+        });
+      }
+
+      tile.addEventListener("pointerdown", (e) => {
+        pointerId = e.pointerId;
+        startX = e.clientX;
+        startY = e.clientY;
+        moved = false;
+        tile.setPointerCapture(pointerId);
+      });
+
+      tile.addEventListener("pointermove", (e) => {
+        if (pointerId === null || e.pointerId !== pointerId) return;
+
+        if (!moved && Math.hypot(e.clientX - startX, e.clientY - startY) > 3) {
+          moved = true;
+          group = groupOf(grabbed);
+          const fontSize = getComputedStyle(tile).fontSize; // ghosts live outside the board's size container
+
+          // One ghost per card in the group, each kept at its offset from where the pointer grabbed,
+          // so nothing jumps when the drag starts
+          ghosts = group.map((p) => {
+            const src = tileAt(p);
+            const rect = src.getBoundingClientRect();
+            const el = src.cloneNode(true) as HTMLElement;
+            el.classList.add("pyramid__drag-ghost");
+            el.style.width = `${rect.width}px`;
+            el.style.height = `${rect.height}px`;
+            el.style.fontSize = fontSize;
+            src.classList.add("is-dragging");
+            return {
+              el,
+              dx: rect.left - startX,
+              dy: rect.top - startY,
+            };
+          });
+          // Position BEFORE inserting into the DOM to avoid a flicker
+          moveGhosts(e.clientX, e.clientY);
+          ghosts.forEach((g) => document.body.appendChild(g.el));
+        }
+
+        if (!moved) return;
+        moveGhosts(e.clientX, e.clientY);
+
+        // Preview every space the group would land in (nothing shows if it doesn't fit).
+        // Only recalculated when the pointer moves onto a different card.
+        const target = targetUnder(e.clientX, e.clientY);
+        if (target === lastTarget) return;
+        lastTarget = target;
+        clearPreview();
+        plan = target === null || target === grabbed ? null : planMove(group, grabbed, target);
+        plan?.forEach((q) => tileAt(q).classList.add("is-drop-target"));
+      });
+
+      tile.addEventListener("pointerup", (e) => {
+        if (pointerId === null || e.pointerId !== pointerId) return;
+        tile.releasePointerCapture(pointerId);
+        pointerId = null;
+
+        if (moved) {
+          const finalPlan = plan;
+          const movedGroup = group;
+          cleanup();
+          if (finalPlan) applyMove(movedGroup, finalPlan);
+        }
+        moved = false;
+      });
+
+      tile.addEventListener("pointercancel", () => {
+        pointerId = null;
+        moved = false;
+        cleanup();
+      });
+    });
+
+    const resizeObserver = new ResizeObserver(drawEdges);
+    resizeObserver.observe(root);
+
+    window.addEventListener("load", drawEdges);
+    window.addEventListener("resize", drawEdges);
+    document.fonts?.ready.then(drawEdges);
+    requestAnimationFrame(() => {
+      drawEdges();
+      setTimeout(drawEdges, 100);
+    });
+
+    window.addEventListener("puzzle:reset", () => location.reload());
+  }
+
+  document
+    .querySelectorAll<HTMLElement>("[data-puzzle-root]")
+    .forEach(initPyramid);
+</script>

@@ -1,0 +1,28 @@
+---
+import { info } from "../../data/info";
+
+interface Props {
+  upgradeUrl?: string;
+}
+
+const { upgradeUrl = info.coffeeLink || "#" } = Astro.props;
+---
+
+<!-- Small, quiet Plus note under the puzzle list -->
+<section id="plus" aria-label="High Tide Plus" class="mx-auto mt-6 w-full max-w-6xl scroll-mt-24 px-6 sm:px-8">
+  <a
+    href={upgradeUrl}
+    class="group flex items-center gap-3 rounded-2xl px-4 py-3 text-sm text-muted border border-dashed border-line transition-colors duration-200 ease-smooth hover:bg-sun/10 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sun"
+  >
+    <svg class="h-4 w-4 shrink-0 text-sun" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 2l2.9 6.9L22 9.6l-5.4 4.7L18.2 22 12 18.3 5.8 22l1.6-7.7L2 9.6l7.1-.7z"></path>
+    </svg>
+    <span class="flex-1">
+      <span class="font-semibold text-ink">High Tide Plus</span>
+      <span class="hidden sm:inline"> — unlimited extra puzzles and the full archive.</span>
+    </span>
+    <span class="shrink-0 font-semibold text-sun-strong">
+      Learn more <span class="inline-block transition-transform duration-200 ease-smooth group-hover:translate-x-0.5">&rarr;</span>
+    </span>
+  </a>
+</section>

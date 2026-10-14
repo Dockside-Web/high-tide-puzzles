@@ -1,7 +1,5 @@
 ---
-import { Image } from "astro:assets";
-import buoyIcon from "../../assets/puzzle-icons/buoy.png";
-import { info } from "../../data/info";
+import Logo from "./Logo.astro";
 
 const linkClass = "text-muted transition-colors duration-150 ease-smooth hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60";
 ---
@@ -9,19 +7,12 @@ const linkClass = "text-muted transition-colors duration-150 ease-smooth hover:t
 <!-- mt-8 / mt-12 adds top margin above footer border; mt-auto keeps sticky behavior -->
 <footer class="mt-8 border-t border-line/70 sm:mt-12">
   <div class="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-8 sm:py-6">
-    <!-- Left: Logo & Brand Name -->
+    <!-- Left: Logo -->
     <a
       href="/"
-      class="inline-flex items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+      class="inline-flex items-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
     >
-      <Image 
-        src={buoyIcon} 
-        alt="Logo" 
-        width={24} 
-        height={24} 
-        class="h-5 w-5 object-contain sm:h-6 sm:w-6" 
-      />
-      <span class="text-xs font-bold tracking-tight text-ink sm:text-base">{info.name}</span>
+      <Logo class="text-sm sm:text-base" />
     </a>
 
     <!-- Right: Privacy Policy & Terms of Service -->

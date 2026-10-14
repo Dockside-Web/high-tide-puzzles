@@ -1,0 +1,79 @@
+---
+import type { Difficulty } from "../../puzzles/types";
+import Timer from "./Timer.astro";
+
+interface Props {
+  plusMode: boolean;
+  difficulties: Difficulty[];
+  showTimer: boolean;
+}
+
+const { plusMode, difficulties, showTimer } = Astro.props;
+
+const modes = [
+  { id: "daily", label: "Daily" },
+  { id: "plus", label: "Plus" },
+];
+
+const groupClass = "inline-flex items-center gap-0.5 rounded-full bg-ink/5 p-0.5";
+const optionClass =
+  "cursor-pointer rounded-full px-3 py-1 text-xs font-semibold text-muted transition-colors hover:text-ink sm:px-3.5 sm:text-sm aria-pressed:bg-surface aria-pressed:text-puzzle-strong aria-pressed:shadow-sm aria-pressed:ring-1 aria-pressed:ring-line";
+---
+
+<!--
+  Phone: [mode ........ timer] then [difficulty] centered on its own row.
+  Wider: [mode] [difficulty] [timer] on one row.
+  Each [data-segmented] group dispatches its data-event with { value } when an option is picked.
+-->
+<div class="flex flex-wrap items-center justify-between gap-2 select-none">
+  {plusMode ? (
+    <div class={`order-1 ${groupClass}`} role="group" aria-label="Puzzle mode" data-segmented data-event="puzzle:mode-change">
+      {modes.map((mode, index) => (
+        <button type="button" class={optionClass} data-value={mode.id} aria-pressed={index === 0 ? "true" : "false"}>
+          {mode.label}
+        </button>
+      ))}
+    </div>
+  ) : (
+    <span class="order-1"></span>
+  )}
+
+  {difficulties.length > 0 && (
+    <div class="order-3 flex w-full justify-center sm:order-2 sm:w-auto">
+      <div class={groupClass} role="group" aria-label="Difficulty" data-segmented data-event="puzzle:difficulty-change">
+        {difficulties.map((diff, index) => (
+          <button type="button" class={optionClass} data-value={diff.id} aria-pressed={index === 0 ? "true" : "false"}>
+            {diff.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )}
+
+  {showTimer ? (
+    <div class="order-2 sm:order-3">
+      <Timer />
+    </div>
+  ) : (
+    <span class="order-2 sm:order-3"></span>
+  )}
+</div>
+
+<script>
+  document.querySelectorAll<HTMLElement>("[data-segmented]").forEach((group) => {
+    const options = Array.from(group.querySelectorAll<HTMLButtonElement>("[data-value]"));
+
+    options.forEach((option) => {
+      option.addEventListener("click", () => {
+        if (option.getAttribute("aria-pressed") === "true") return;
+
+        options.forEach((o) => o.setAttribute("aria-pressed", String(o === option)));
+
+        window.dispatchEvent(
+          new CustomEvent(group.dataset.event!, { detail: { value: option.dataset.value } })
+        );
+        window.dispatchEvent(new Event("puzzle:timer-reset"));
+      });
+    });
+  });
+</script>

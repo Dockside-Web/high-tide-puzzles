@@ -1,0 +1,45 @@
+---
+import type { PuzzleToolbarConfig } from "../../puzzles/types";
+
+interface Props {
+  config: PuzzleToolbarConfig;
+}
+
+const { config } = Astro.props;
+
+// Order here is the order buttons appear in. Clicking dispatches "puzzle:<action>".
+const actions: { action: keyof PuzzleToolbarConfig; label: string; icon: string }[] = [
+  { action: "undo", label: "Undo", icon: '<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>' },
+  { action: "redo", label: "Redo", icon: '<path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/>' },
+  { action: "erase", label: "Erase", icon: '<path d="M20 20H7L3 16c-1.5-1.5-1.5-3.5 0-5l7-7c1.5-1.5 3.5-1.5 5 0l5 5c1.5 1.5 1.5 3.5 0 5l-5 5z"/>' },
+  { action: "hint", label: "Hint", icon: '<path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V16h8v-1.3A7 7 0 0 0 12 2z"/>' },
+  { action: "reset", label: "Reset", icon: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>' },
+];
+
+const visible = actions.filter(({ action }) => config[action]);
+---
+
+{visible.length > 0 && (
+  <div class="flex items-center justify-center gap-1 sm:gap-2">
+    {visible.map(({ action, label, icon }) => (
+      <button
+        type="button"
+        data-action={action}
+        class="flex min-w-16 cursor-pointer flex-col items-center gap-1 rounded-full px-4 py-2 text-xs font-semibold text-ink/80 transition-colors hover:bg-puzzle/15 hover:text-puzzle-strong sm:flex-row sm:gap-1.5 sm:text-sm"
+      >
+        <svg class="h-5 w-5 sm:h-4 sm:w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <Fragment set:html={icon} />
+        </svg>
+        {label}
+      </button>
+    ))}
+  </div>
+)}
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>("[data-action]").forEach((button) => {
+    button.addEventListener("click", () => {
+      window.dispatchEvent(new CustomEvent(`puzzle:${button.dataset.action}`));
+    });
+  });
+</script>
