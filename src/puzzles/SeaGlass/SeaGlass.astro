@@ -1,78 +1,69 @@
 ---
 import type { PuzzleConfig } from "../types";
+import { COLS, ROWS } from "./generate";
 
 interface Props {
   puzzle: PuzzleConfig;
   date?: string;
 }
 
-// ---------- Dummy puzzle (frontend only) ----------
+const { puzzle } = Astro.props;
+
+// The day's tiles are made in the browser from the player's local date (see generate.ts).
 // Each tile is a square split into 4 triangles: [top, right, bottom, left].
-// K = black, S = seafoam, O = ocean, Y = sun, C = coral.
-// The solution is described by the colors of the edges *between* tiles; every outer edge is black.
-const ROWS = 4;
-const COLS = 7;
-
-// Color of the edge between (r, c) and (r, c + 1)
-const sideEdges = [
-  "SSSYYO",
-  "SSYYOO",
-  "CSYYOO",
-  "CSOOOY",
-];
-
-// Color of the edge between (r, c) and (r + 1, c)
-const stackEdges = [
-  "SSSYYOY",
-  "YYSYOOO",
-  "CSSOOOY",
-];
-
-const solvedTiles = Array.from({ length: ROWS * COLS }, (_, i) => {
-  const r = Math.floor(i / COLS);
-  const c = i % COLS;
-  const top = r === 0 ? "K" : stackEdges[r - 1][c];
-  const bottom = r === ROWS - 1 ? "K" : stackEdges[r][c];
-  const left = c === 0 ? "K" : sideEdges[r][c - 1];
-  const right = c === COLS - 1 ? "K" : sideEdges[r][c];
-  return top + right + bottom + left;
-});
-
-// Scramble the tiles into the bank (11 shares no factor with 28, so this visits every tile once)
-const bankTiles = solvedTiles.map((_, i) => solvedTiles[(i * 11) % solvedTiles.length]);
-
-// Triangles in a 100x100 tile, in [top, right, bottom, left] order
+// Triangles in a 100x100 tile, in that order
 const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,50", "0,0 0,100 50,50"];
 ---
 
 <!--
-  Interaction: drag tiles from the bank onto the board (or between any two spaces).
-  Dropping on a space that already has a tile swaps the two. Tiles never rotate.
+  Interaction: drag a tile onto any space, or tap a tile to pick it up and tap a space (or another
+  tile) to put it there. Landing on a tile swaps the two. Tiles never rotate. Works by keyboard too:
+  Enter picks up a tile, then Tab to a space and Enter.
   Solved when the board is full, every touching edge matches, and only the outside edges are black.
+  The board, timer and finish are saved per date and difficulty, so a refresh picks up where it was.
 -->
-<div class="sea-glass" data-sea-glass-root data-rows={ROWS} data-cols={COLS} style={`--cols: ${COLS}`}>
+<div
+  class="sea-glass"
+  data-sea-glass-root
+  data-slug={puzzle.slug}
+  data-rows={ROWS}
+  data-cols={COLS}
+  style={`--cols: ${COLS}`}
+>
+  <!-- Copied for each tile, so the tiles pick up this component's styles -->
+  <template data-tile-template>
+    <button type="button" class="sea-glass__tile" data-tile aria-pressed="false">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        {triangles.map((points) => <polygon points={points} class="sea-glass__tri" />)}
+      </svg>
+    </button>
+  </template>
+
   <!-- Board -->
   <div class="sea-glass__board" data-board>
     {Array.from({ length: ROWS * COLS }, (_, i) => (
-      <div class="sea-glass__slot" data-slot data-area="board" data-index={i}></div>
+      <div
+        class="sea-glass__slot"
+        data-slot
+        data-area="board"
+        data-index={i}
+        role="button"
+        aria-label={`Board row ${Math.floor(i / COLS) + 1}, column ${(i % COLS) + 1}`}
+      ></div>
     ))}
   </div>
 
-  <p class="sea-glass__solved" data-solved-message hidden>Solved!</p>
+  <!-- "Solved in 02:14" / "Solution revealed" once the board is finished -->
+  <p class="sea-glass__status" data-status-message aria-live="polite" hidden></p>
 
   <!-- Bank -->
-  <div class="sea-glass__bank" data-bank>
-    {bankTiles.map((edges, i) => (
-      <div class="sea-glass__slot" data-slot data-area="bank" data-index={i}>
-        <button type="button" class="sea-glass__tile" data-tile data-edges={edges} aria-label="Tile">
-          <svg viewBox="0 0 100 100" aria-hidden="true">
-            {triangles.map((points, side) => (
-              <polygon points={points} class={`sea-glass__tri sea-glass__tri--${edges[side]}`} />
-            ))}
-          </svg>
-        </button>
-      </div>
-    ))}
+  <div class="sea-glass__bank-wrap">
+    <div class="sea-glass__bank" data-bank>
+      {Array.from({ length: ROWS * COLS }, (_, i) => (
+        <div class="sea-glass__slot" data-slot data-area="bank" data-index={i} role="button" aria-label={`Bank space ${i + 1}`}></div>
+      ))}
+    </div>
+    <p class="sea-glass__loading" data-loading>Shuffling today's tiles…</p>
   </div>
 </div>
 
@@ -110,6 +101,10 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
 
+  .sea-glass__bank-wrap {
+    position: relative;
+  }
+
   .sea-glass__bank {
     background: rgb(var(--ink) / 0.04);
     border: 1px dashed rgb(var(--line));
@@ -120,21 +115,54 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
     box-shadow: 0 0 0 3px rgb(var(--puzzle) / 0.25);
   }
 
-  .sea-glass__solved {
+  /* Finished (solved or revealed): the board is locked until Reset */
+  .sea-glass.is-locked .sea-glass__tile {
+    cursor: default;
+  }
+
+  .sea-glass__status {
     margin: -0.25rem 0;
-    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
-    font-weight: 700;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: rgb(var(--muted));
+  }
+
+  .sea-glass[data-status="solved"] .sea-glass__status {
     color: rgb(var(--puzzle-strong));
+  }
+
+  /* Shown over the empty bank while the day's tiles are being made */
+  .sea-glass__loading {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: rgb(var(--muted));
+    animation: sea-glass-pulse 1.2s ease-in-out infinite;
+  }
+
+  .sea-glass[data-status="loading"] .sea-glass__loading {
+    display: flex;
+  }
+
+  @keyframes sea-glass-pulse {
+    50% { opacity: 0.45; }
   }
 
   .sea-glass__slot {
     position: relative;
     box-shadow: inset 0 0 0 0.5px rgb(var(--ink) / 0.12); /* faint lines between empty spaces */
     background: rgb(var(--ink) / 0.06);
+    outline: none;
   }
 
-  /* Drawn above any tile in the space */
-  .sea-glass__slot.is-drop-target::after {
+  /* Drawn above any tile in the space: drag target, or an empty space you can tap/tab to while a tile is picked up */
+  .sea-glass__slot.is-drop-target::after,
+  .sea-glass.is-picking .sea-glass__slot:empty:hover::after,
+  .sea-glass__slot:focus-visible::after {
     content: "";
     position: absolute;
     inset: 0;
@@ -143,7 +171,12 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
     pointer-events: none;
   }
 
+  .sea-glass.is-picking .sea-glass__slot:empty {
+    cursor: pointer;
+  }
+
   .sea-glass__tile {
+    position: relative;
     display: block;
     width: 100%;
     height: 100%;
@@ -153,6 +186,7 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
     background: none;
     cursor: grab;
     touch-action: none;
+    outline: none;
   }
 
   .sea-glass__tile:active {
@@ -161,6 +195,19 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
 
   .sea-glass__tile.is-dragging {
     opacity: 0.25;
+  }
+
+  /* Picked up by a tap: lifted with a ring in the puzzle's color */
+  .sea-glass__tile.is-selected {
+    z-index: 2;
+    transform: scale(1.08);
+    box-shadow: 0 0 0 3px rgb(var(--puzzle-strong)), 0 8px 18px -4px rgb(0 0 0 / 0.35);
+    transition: transform 0.12s ease;
+  }
+
+  .sea-glass__tile:focus-visible {
+    z-index: 2;
+    box-shadow: 0 0 0 3px rgb(var(--puzzle-strong));
   }
 
   .sea-glass__tile svg {
@@ -201,35 +248,92 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
     will-change: transform;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sea-glass__loading,
+    .sea-glass__tri.is-wrong {
+      animation: none;
+    }
+  }
 </style>
 
 <script>
+  import { dailyRandom, forgetOldProgress, loadProgress, localDateKey, saveProgress } from "../daily";
+  import { generateSeaGlass, type SeaGlassDifficulty } from "./generate";
+
+  type Status = "loading" | "playing" | "solved" | "revealed";
+
+  /** What's saved for one day at one difficulty */
+  interface SavedGame {
+    /** Each space's tile (its edges), or "" if empty: the 28 board spaces, then the 28 bank spaces */
+    slots: string[];
+    seconds: number;
+    status: "playing" | "solved" | "revealed";
+  }
+
+  const COLOR_NAMES: Record<string, string> = { K: "black", S: "seafoam", O: "ocean", Y: "sun", C: "coral" };
+
+  const formatTime = (seconds: number) =>
+    `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+
+  /** Resolves once the browser has drawn the current state (so "Shuffling…" shows before the heavy work). */
+  const nextPaint = () => new Promise<void>((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
+
   function initSeaGlass(root: HTMLElement) {
+    const slug = root.dataset.slug!;
+    let dateKey = localDateKey();
+    let difficulty: SeaGlassDifficulty = "easy"; // the first difficulty tab starts selected
     const rows = Number(root.dataset.rows);
     const cols = Number(root.dataset.cols);
     const boardSlots = Array.from(root.querySelectorAll<HTMLElement>('[data-area="board"]'));
-    const tiles = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-tile]"));
-    const solvedMessage = root.querySelector<HTMLElement>("[data-solved-message]");
-    const homeSlot = new Map(tiles.map((t) => [t, t.parentElement as HTMLElement]));
+    const bankSlots = Array.from(root.querySelectorAll<HTMLElement>('[data-area="bank"]'));
+    const allSlots = [...boardSlots, ...bankSlots];
+    const tileTemplate = root.querySelector<HTMLTemplateElement>("[data-tile-template]")!;
+    const statusMessage = root.querySelector<HTMLElement>("[data-status-message]")!;
+
+    let tiles: HTMLButtonElement[] = [];
+    let solution: string[] = [];
+    let status: Status = "loading";
+    let seconds = 0; // kept in step with the timer, for saving
+    let selected: HTMLButtonElement | null = null;
+    let loadId = 0;
 
     const tileIn = (slot: HTMLElement) => slot.querySelector<HTMLButtonElement>("[data-tile]");
-
     const bankTiles = () => Array.from(root.querySelectorAll<HTMLElement>('[data-area="bank"] [data-tile]'));
     const OUTSIDE = "outside";
 
+    // ---------- Status ----------
+    function setStatus(next: Status) {
+      status = next;
+      root.dataset.status = next;
+      root.classList.toggle("is-locked", next !== "playing");
+      if (next !== "playing") select(null);
+
+      statusMessage.hidden = next !== "solved" && next !== "revealed";
+      statusMessage.textContent = next === "solved" ? `Solved in ${formatTime(seconds)}` : "Solution revealed";
+    }
+
+    function save() {
+      if (status === "loading") return;
+      const slots = allSlots.map((slot) => tileIn(slot)?.dataset.edges ?? "");
+      saveProgress(slug, difficulty, dateKey, { slots, seconds, status } satisfies SavedGame);
+    }
+
+    // ---------- Rules ----------
     /**
      * Is one side of a tile touching the wrong thing?
      * - Facing the outside of the board: must be black.
-     * - Facing another tile: colors must match, and black never belongs inside the board.
+     * - Facing another tile: colors must match. On Easy, black never belongs inside the board;
+     *   on Hard it can, as long as both sides are black.
      * - Facing an empty space: nothing to check yet.
      */
     function sideIsWrong(mine: string, theirs: string | null) {
       if (theirs === null) return false;
       if (theirs === OUTSIDE) return mine !== "K";
-      return mine === "K" || mine !== theirs;
+      return mine !== theirs || (mine === "K" && difficulty === "easy");
     }
 
-    /** Re-check every board tile, mark wrong triangles, and detect a finished board. */
+    /** Re-check every board tile, mark wrong triangles, and catch the moment the board is solved. */
     function update() {
       const edges = boardSlots.map((slot) => tileIn(slot)?.dataset.edges ?? null);
       let anyWrong = false;
@@ -261,18 +365,140 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
         tile.querySelectorAll(".is-wrong").forEach((tri) => tri.classList.remove("is-wrong"));
       });
 
-      const solved = edges.every((e) => e !== null) && !anyWrong;
-      root.classList.toggle("is-solved", solved);
-      if (solvedMessage) solvedMessage.hidden = !solved;
+      const boardRight = edges.every((e) => e !== null) && !anyWrong;
+      root.classList.toggle("is-solved", boardRight);
+
+      // Celebrate once, the moment the last tile makes it right (PuzzleLayout's SolvedCelebration).
+      // A revealed board was never "playing", so it never gets here.
+      if (boardRight && status === "playing") {
+        setStatus("solved");
+        window.dispatchEvent(new Event("puzzle:solved"));
+      }
     }
 
+    // ---------- Moving tiles (shared by drag and tap) ----------
+    /** Puts a tile in a space, swapping with whatever was there. */
+    function moveTile(tile: HTMLButtonElement, target: HTMLElement) {
+      const from = tile.parentElement as HTMLElement;
+      if (target === from) return;
+      const other = tileIn(target);
+      target.appendChild(tile);
+      if (other) from.appendChild(other);
+      update();
+      save();
+    }
+
+    /** Picks a tile up (or puts it down with null). Empty spaces become tab stops while one is held. */
+    function select(tile: HTMLButtonElement | null) {
+      selected?.classList.remove("is-selected");
+      selected?.setAttribute("aria-pressed", "false");
+      selected = tile;
+      selected?.classList.add("is-selected");
+      selected?.setAttribute("aria-pressed", "true");
+      root.classList.toggle("is-picking", !!tile);
+      allSlots.forEach((slot) => {
+        if (tile && !tileIn(slot)) slot.tabIndex = 0;
+        else slot.removeAttribute("tabindex");
+      });
+    }
+
+    /** Tap (or Enter) on a tile: pick it up, put it down, or swap it with the one already held. */
+    function tapTile(tile: HTMLButtonElement) {
+      if (status !== "playing") return;
+      if (!selected) return select(tile);
+      if (selected === tile) return select(null);
+      const held = selected;
+      select(null);
+      moveTile(held, tile.parentElement as HTMLElement);
+    }
+
+    /** Tap (or Enter) on an empty space while holding a tile: put it there. */
+    function tapSlot(slot: HTMLElement) {
+      if (status !== "playing" || !selected || tileIn(slot)) return;
+      const held = selected;
+      select(null);
+      moveTile(held, slot);
+      held.focus({ focusVisible: false } as FocusOptions);
+    }
+
+    root.addEventListener("click", (e) => {
+      const target = e.target as Element;
+      if (target.closest("[data-tile]")) return; // tiles handle their own taps
+      const slot = target.closest<HTMLElement>("[data-slot]");
+      if (slot) tapSlot(slot);
+    });
+
+    root.addEventListener("keydown", (e) => {
+      const slot = (e.target as Element).closest<HTMLElement>("[data-slot]");
+      if (!slot || e.target !== slot || (e.key !== "Enter" && e.key !== " ")) return;
+      e.preventDefault();
+      tapSlot(slot);
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && selected) select(null);
+    });
+
+    // ---------- Tiles ----------
+    function makeTile(edges: string) {
+      const tile = tileTemplate.content.firstElementChild!.cloneNode(true) as HTMLButtonElement;
+      tile.dataset.edges = edges;
+      tile.setAttribute(
+        "aria-label",
+        `Tile: top ${COLOR_NAMES[edges[0]]}, right ${COLOR_NAMES[edges[1]]}, bottom ${COLOR_NAMES[edges[2]]}, left ${COLOR_NAMES[edges[3]]}`
+      );
+      tile.querySelectorAll(".sea-glass__tri").forEach((tri, side) => tri.classList.add(`sea-glass__tri--${edges[side]}`));
+      enableDrag(tile);
+      return tile;
+    }
+
+    /**
+     * Shows "Shuffling…", then makes the tiles for the current date and difficulty and lays them
+     * out: from the saved board if there is one, otherwise all in the bank.
+     */
+    async function load() {
+      const id = ++loadId;
+      tiles.forEach((t) => t.remove());
+      tiles = [];
+      setStatus("loading");
+      update();
+
+      await nextPaint();
+      if (id !== loadId) return; // switched difficulty (or day) again in the meantime
+
+      const puzzle = generateSeaGlass(dailyRandom(slug, difficulty, dateKey), difficulty);
+      solution = puzzle.solution;
+      tiles = puzzle.bank.map(makeTile);
+
+      const saved = loadProgress<SavedGame>(slug, difficulty, dateKey);
+      // Only trust a save holding exactly today's tiles
+      const valid =
+        saved?.slots?.length === allSlots.length &&
+        saved.slots.filter(Boolean).sort().join() === [...puzzle.bank].sort().join();
+
+      if (valid) {
+        const byEdges = new Map(tiles.map((t) => [t.dataset.edges!, t]));
+        saved.slots.forEach((edges, i) => edges && allSlots[i].appendChild(byEdges.get(edges)!));
+        seconds = saved.seconds;
+        setStatus(saved.status);
+        window.dispatchEvent(
+          new CustomEvent("puzzle:timer-set", { detail: { seconds, running: saved.status === "playing" } })
+        );
+      } else {
+        tiles.forEach((t, i) => bankSlots[i].appendChild(t));
+        seconds = 0;
+        setStatus("playing");
+      }
+      update();
+    }
 
     // ---------- Drag ----------
-    tiles.forEach((tile) => {
+    function enableDrag(tile: HTMLButtonElement) {
       let pointerId: number | null = null;
       let startX = 0;
       let startY = 0;
       let moved = false;
+      let dragged = false; // a drag just ended, so the click that follows isn't a tap
       let ghost: HTMLElement | null = null;
       let dx = 0;
       let dy = 0;
@@ -297,7 +523,17 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
         setOver(null);
       }
 
+      tile.addEventListener("click", () => {
+        if (dragged) {
+          dragged = false;
+          return;
+        }
+        tapTile(tile);
+      });
+
       tile.addEventListener("pointerdown", (e) => {
+        dragged = false;
+        if (status !== "playing") return;
         pointerId = e.pointerId;
         startX = e.clientX;
         startY = e.clientY;
@@ -310,6 +546,7 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
 
         if (!moved && Math.hypot(e.clientX - startX, e.clientY - startY) > 3) {
           moved = true;
+          select(null);
           const rect = tile.getBoundingClientRect();
           // Keep the tile where it was grabbed relative to the pointer, so nothing jumps
           dx = rect.left - startX;
@@ -333,19 +570,13 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
         if (pointerId === null || e.pointerId !== pointerId) return;
         tile.releasePointerCapture(pointerId);
         pointerId = null;
-        if (!moved) return;
+        if (!moved) return; // a tap: the click handler takes it from here
 
         const target = slotUnder(e.clientX, e.clientY);
-        const from = tile.parentElement as HTMLElement;
         cleanup();
         moved = false;
-
-        if (!target || target === from) return;
-        // Swap with whatever is already in the target space
-        const other = tileIn(target);
-        target.appendChild(tile);
-        if (other) from.appendChild(other);
-        update();
+        dragged = true;
+        if (target) moveTile(tile, target);
       });
 
       tile.addEventListener("pointercancel", () => {
@@ -353,17 +584,58 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
         moved = false;
         cleanup();
       });
+    }
+
+    // ---------- Timer ----------
+    window.addEventListener("puzzle:timer-tick", (e) => {
+      seconds = (e as CustomEvent<{ seconds: number }>).detail.seconds;
+      if (status === "playing") save();
     });
 
     // ---------- Toolbar ----------
     window.addEventListener("puzzle:reset", () => {
-      tiles.forEach((t) => homeSlot.get(t)!.appendChild(t));
+      if (status === "loading") return;
+      // Starting over after a finish (solved or revealed) also restarts the stopped timer
+      if (status !== "playing") {
+        seconds = 0;
+        window.dispatchEvent(new Event("puzzle:timer-reset"));
+      }
+      setStatus("playing");
+      tiles.forEach((t, i) => bankSlots[i].appendChild(t));
       update();
+      save();
     });
 
-    update();
+    // Every tile straight to its spot (tiles are all different, so each has exactly one), then lock the board
+    window.addEventListener("puzzle:reveal", () => {
+      if (status !== "playing") return;
+      setStatus("revealed");
+      solution.forEach((edges, i) => boardSlots[i].appendChild(tiles.find((t) => t.dataset.edges === edges)!));
+      update();
+      save();
+      window.dispatchEvent(new Event("puzzle:revealed"));
+    });
+
+    // Save the finishing time the moment it's solved (the timer stops on this same event)
+    window.addEventListener("puzzle:solved", () => {
+      setStatus("solved"); // refreshes "Solved in …" with the final time
+      save();
+    });
+
+    window.addEventListener("puzzle:new-day", (e) => {
+      dateKey = (e as CustomEvent<{ dateKey: string }>).detail.dateKey;
+      forgetOldProgress(slug);
+      load();
+    });
+
+    window.addEventListener("puzzle:difficulty-change", (e) => {
+      difficulty = (e as CustomEvent<{ value: SeaGlassDifficulty }>).detail.value;
+      load();
+    });
+
+    forgetOldProgress(slug);
+    load();
   }
 
   document.querySelectorAll<HTMLElement>("[data-sea-glass-root]").forEach(initSeaGlass);
 </script>
-

@@ -1,16 +1,14 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import DailyPuzzles from "../components/home/DailyPuzzles.astro";
-import Plus from "../components/home/Plus.astro";
 import FAQ from "../components/home/FAQ.astro";
 import Contact from "../components/home/Contact.astro";
 
 const metaDescription="Free daily puzzles — a new challenge every day.";
 ---
 
-<Layout description={metaDescription}>
+<Layout description={metaDescription} footer>
   <DailyPuzzles />
-  <Plus />
   <FAQ />
   <Contact />
 

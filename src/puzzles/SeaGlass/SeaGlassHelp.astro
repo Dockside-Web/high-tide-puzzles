@@ -1,0 +1,162 @@
+---
+// Picture examples for Sea Glass's "How to play": little tiles drawn like the real ones, each marked
+// as allowed or not. The two triangles that meet at the edge in question are outlined.
+// Tiles are 4 letters, [top, right, bottom, left]: K black, S seafoam, O ocean, Y sun, C coral.
+
+interface Example {
+  ok: boolean;
+  caption: string;
+  /** Tiles placed in a 100-unit grid */
+  tiles: { edges: string; x: number; y: number }[];
+  /** Draw the board's outside edge along the top and left */
+  frame?: boolean;
+  /** Outline around the triangles being checked */
+  mark: string;
+  width: number;
+  height: number;
+}
+
+// Where two side-by-side tiles meet (A's right triangle + B's left triangle)
+const SEAM = "100,0 150,50 100,100 50,50";
+// The left triangle of a tile sitting in the board's corner (see `frame`)
+const PAD = 14;
+const LEFT_TRIANGLE = `${PAD},${PAD} ${PAD + 50},${PAD + 50} ${PAD},${PAD + 100}`;
+
+const examples: Example[] = [
+  {
+    ok: true,
+    caption: "Touching edges are the same color",
+    tiles: [{ edges: "OSYC", x: 0, y: 0 }, { edges: "CYOS", x: 100, y: 0 }],
+    mark: SEAM,
+    width: 200,
+    height: 100,
+  },
+  {
+    ok: false,
+    caption: "Different colors touching",
+    tiles: [{ edges: "OSYC", x: 0, y: 0 }, { edges: "SOYC", x: 100, y: 0 }],
+    mark: SEAM,
+    width: 200,
+    height: 100,
+  },
+  {
+    ok: true,
+    caption: "Black against the outside edge",
+    tiles: [{ edges: "KSOK", x: PAD, y: PAD }],
+    frame: true,
+    mark: LEFT_TRIANGLE,
+    width: 100 + PAD,
+    height: 100 + PAD,
+  },
+  {
+    ok: false,
+    caption: "A color against the outside edge",
+    tiles: [{ edges: "KSOC", x: PAD, y: PAD }],
+    frame: true,
+    mark: LEFT_TRIANGLE,
+    width: 100 + PAD,
+    height: 100 + PAD,
+  },
+  {
+    ok: false,
+    caption: "Easy: black inside the board",
+    tiles: [{ edges: "OKYC", x: 0, y: 0 }, { edges: "CYOK", x: 100, y: 0 }],
+    mark: SEAM,
+    width: 200,
+    height: 100,
+  },
+  {
+    ok: true,
+    caption: "Hard: black inside, matching black",
+    tiles: [{ edges: "OKYC", x: 0, y: 0 }, { edges: "CYOK", x: 100, y: 0 }],
+    mark: SEAM,
+    width: 200,
+    height: 100,
+  },
+];
+
+/** A tile's 4 triangles, in [top, right, bottom, left] order, at (x, y) */
+function triangles(edges: string, x: number, y: number) {
+  const c = `${x + 50},${y + 50}`;
+  return [
+    `${x},${y} ${x + 100},${y} ${c}`,
+    `${x + 100},${y} ${x + 100},${y + 100} ${c}`,
+    `${x},${y + 100} ${x + 100},${y + 100} ${c}`,
+    `${x},${y} ${x},${y + 100} ${c}`,
+  ].map((points, side) => ({ points, color: edges[side] }));
+}
+---
+
+<div class="sea-glass-help mt-5">
+  <p class="text-sm font-semibold text-ink">Examples</p>
+
+  <ul class="mt-3 grid grid-cols-2 gap-2.5">
+    {examples.map(({ ok, caption, tiles, frame, mark, width, height }) => (
+      <li class="flex flex-col items-center gap-2 rounded-xl p-3 ring-1 ring-line">
+        <svg class="h-14 w-auto" viewBox={`-4 -4 ${width + 8} ${height + 8}`} aria-hidden="true">
+          {tiles.flatMap(({ edges, x, y }) =>
+            triangles(edges, x, y).map(({ points, color }) => <polygon points={points} class={`tri tri--${color}`} />)
+          )}
+          {frame && <path class="frame" d={`M 4 ${height + 4} V 4 H ${width + 4}`} />}
+          <polygon points={mark} class:list={["mark", ok ? "mark--ok" : "mark--bad"]} />
+        </svg>
+
+        <p class="flex items-start gap-1.5 text-center text-xs leading-snug font-medium text-ink">
+          {ok ? (
+            <svg class="mt-px h-3.5 w-3.5 shrink-0 text-seafoam-strong" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-label="Allowed">
+              <path d="M20 6 9 17l-5-5"></path>
+            </svg>
+          ) : (
+            <svg class="mt-px h-3.5 w-3.5 shrink-0 text-coral-strong" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-label="Not allowed">
+              <path d="M18 6 6 18M6 6l12 12"></path>
+            </svg>
+          )}
+          {caption}
+        </p>
+      </li>
+    ))}
+  </ul>
+
+  <p class="mt-4 text-xs leading-relaxed text-muted">
+    Tip: on the finished board, each color forms one connected patch.
+  </p>
+</div>
+
+<style>
+  .sea-glass-help {
+    --black: 24 30 40;
+  }
+
+  :global(.dark) .sea-glass-help {
+    --black: 3 7 13;
+  }
+
+  .tri {
+    stroke: rgb(0 0 0 / 0.18);
+    stroke-width: 1;
+  }
+
+  .tri--K { fill: rgb(var(--black)); }
+  .tri--S { fill: rgb(var(--seafoam)); }
+  .tri--O { fill: rgb(var(--ocean)); }
+  .tri--Y { fill: rgb(var(--sun)); }
+  .tri--C { fill: rgb(var(--coral)); }
+
+  /* The board's outside edge */
+  .frame {
+    fill: none;
+    stroke: rgb(var(--muted));
+    stroke-width: 6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .mark {
+    fill: none;
+    stroke-width: 6;
+    stroke-linejoin: round;
+  }
+
+  .mark--ok { stroke: rgb(var(--seafoam-strong)); }
+  .mark--bad { stroke: rgb(var(--coral-strong)); }
+</style>

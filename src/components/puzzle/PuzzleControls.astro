@@ -3,60 +3,33 @@ import type { Difficulty } from "../../puzzles/types";
 import Timer from "./Timer.astro";
 
 interface Props {
-  plusMode: boolean;
   difficulties: Difficulty[];
   showTimer: boolean;
 }
 
-const { plusMode, difficulties, showTimer } = Astro.props;
+const { difficulties, showTimer } = Astro.props;
 
-const modes = [
-  { id: "daily", label: "Daily" },
-  { id: "plus", label: "Plus" },
-];
-
-const groupClass = "inline-flex items-center gap-0.5 rounded-full bg-ink/5 p-0.5";
+// The picked tab gets an underline in the puzzle's color, sitting on the bar's hairline
 const optionClass =
-  "cursor-pointer rounded-full px-3 py-1 text-xs font-semibold text-muted transition-colors hover:text-ink sm:px-3.5 sm:text-sm aria-pressed:bg-surface aria-pressed:text-puzzle-strong aria-pressed:shadow-sm aria-pressed:ring-1 aria-pressed:ring-line";
+  "relative cursor-pointer py-2.5 text-sm font-semibold text-muted transition-colors hover:text-ink aria-pressed:text-puzzle-strong after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-transparent aria-pressed:after:bg-puzzle-strong";
 ---
 
 <!--
-  Phone: [mode ........ timer] then [difficulty] centered on its own row.
-  Wider: [mode] [difficulty] [timer] on one row.
+  A tab bar under the puzzle title: difficulty tabs on the left, timer on the right,
+  all on one hairline so they read as part of the header rather than floating above the board.
   Each [data-segmented] group dispatches its data-event with { value } when an option is picked.
 -->
-<div class="flex flex-wrap items-center justify-between gap-2 select-none">
-  {plusMode ? (
-    <div class={`order-1 ${groupClass}`} role="group" aria-label="Puzzle mode" data-segmented data-event="puzzle:mode-change">
-      {modes.map((mode, index) => (
-        <button type="button" class={optionClass} data-value={mode.id} aria-pressed={index === 0 ? "true" : "false"}>
-          {mode.label}
-        </button>
-      ))}
-    </div>
-  ) : (
-    <span class="order-1"></span>
-  )}
+<div class="flex items-center justify-between gap-4 border-b border-line select-none">
+  <!-- Kept even with no tabs, so the timer stays on the right -->
+  <div class="flex items-center gap-4 sm:gap-5" role="group" aria-label="Difficulty" data-segmented data-event="puzzle:difficulty-change">
+    {difficulties.map((diff, index) => (
+      <button type="button" class={optionClass} data-value={diff.id} aria-pressed={index === 0 ? "true" : "false"}>
+        {diff.label}
+      </button>
+    ))}
+  </div>
 
-  {difficulties.length > 0 && (
-    <div class="order-3 flex w-full justify-center sm:order-2 sm:w-auto">
-      <div class={groupClass} role="group" aria-label="Difficulty" data-segmented data-event="puzzle:difficulty-change">
-        {difficulties.map((diff, index) => (
-          <button type="button" class={optionClass} data-value={diff.id} aria-pressed={index === 0 ? "true" : "false"}>
-            {diff.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  )}
-
-  {showTimer ? (
-    <div class="order-2 sm:order-3">
-      <Timer />
-    </div>
-  ) : (
-    <span class="order-2 sm:order-3"></span>
-  )}
+  {showTimer && <Timer />}
 </div>
 
 <script>

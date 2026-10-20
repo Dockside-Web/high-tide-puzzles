@@ -1,13 +1,14 @@
 ---
 // Timer pill. Pairs with PauseOverlay, which it shows/hides.
-// Listens for: puzzle:timer-reset, puzzle:pause
+// Listens for: puzzle:timer-reset, puzzle:timer-set, puzzle:pause, puzzle:resume, puzzle:solved, puzzle:revealed, puzzle:failed
+// Sends: puzzle:timer-tick each second it counts
 ---
 
 <div class="inline-flex items-center gap-1 font-mono text-sm font-bold text-ink sm:text-base">
   <button
     id="timer-toggle-btn"
     type="button"
-    class="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-muted transition-colors hover:bg-ink/5 hover:text-ink"
+    class="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-muted transition-colors enabled:hover:bg-ink/5 enabled:hover:text-ink disabled:cursor-default disabled:opacity-40"
     aria-label="Pause timer"
   >
     <svg id="timer-pause-icon" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
@@ -24,9 +25,10 @@
 <script>
   let secondsElapsed = 0;
   let isPaused = false;
+  let isStopped = false;
 
   const timerDisplay = document.getElementById("timer-display");
-  const timerToggleBtn = document.getElementById("timer-toggle-btn");
+  const timerToggleBtn = document.getElementById("timer-toggle-btn") as HTMLButtonElement | null;
   const pauseIcon = document.getElementById("timer-pause-icon");
   const playIcon = document.getElementById("timer-play-icon");
   const pauseOverlay = document.getElementById("pause-overlay");
@@ -49,19 +51,50 @@
   }
 
   window.setInterval(() => {
-    if (!isPaused) {
+    if (!isPaused && !isStopped) {
       secondsElapsed++;
       updateDisplay();
+      // So a puzzle can save the time with its board
+      window.dispatchEvent(new CustomEvent("puzzle:timer-tick", { detail: { seconds: secondsElapsed } }));
     }
   }, 1000);
 
+  // A puzzle restoring a saved board: pick up its time, still running or frozen if it was finished.
+  // Leaves pausing alone, so the help popup can keep the timer paused while it's open.
+  window.addEventListener("puzzle:timer-set", (e) => {
+    const { seconds, running } = (e as CustomEvent<{ seconds: number; running: boolean }>).detail;
+    secondsElapsed = seconds;
+    isStopped = !running;
+    if (timerToggleBtn) timerToggleBtn.disabled = !running;
+    if (!running) setPaused(false);
+    updateDisplay();
+  });
+
   window.addEventListener("puzzle:timer-reset", () => {
     secondsElapsed = 0;
+    isStopped = false;
+    if (timerToggleBtn) timerToggleBtn.disabled = false;
     setPaused(false);
     updateDisplay();
   });
 
-  window.addEventListener("puzzle:pause", () => setPaused(true));
+  window.addEventListener("puzzle:pause", () => {
+    if (!isStopped) setPaused(true);
+  });
+
+  // e.g. closing the help popup, which paused the timer when it opened
+  window.addEventListener("puzzle:resume", () => {
+    if (!isStopped) setPaused(false);
+  });
+
+  // Solved, revealed or failed: freeze (without the pause cover) until the board starts over
+  function stop() {
+    isStopped = true;
+    if (timerToggleBtn) timerToggleBtn.disabled = true;
+  }
+  window.addEventListener("puzzle:solved", stop);
+  window.addEventListener("puzzle:revealed", stop);
+  window.addEventListener("puzzle:failed", stop);
 
   timerToggleBtn?.addEventListener("click", () => setPaused(!isPaused));
   resumeBtn?.addEventListener("click", () => setPaused(false));

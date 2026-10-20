@@ -1,21 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-  <!-- Sandstone pyramid of word tiles: 1 / 2 / 3 -->
-  <g stroke="#5b3a1d" stroke-width="3" stroke-linejoin="round">
-    <rect x="23" y="7" width="18" height="14" rx="3" fill="#e3a43f"/>
-    <rect x="12.5" y="25" width="18" height="14" rx="3" fill="#f4d394"/>
-    <rect x="33.5" y="25" width="18" height="14" rx="3" fill="#f4d394"/>
-    <rect x="2" y="43" width="18" height="14" rx="3" fill="#f4d394"/>
-    <rect x="23" y="43" width="18" height="14" rx="3" fill="#f4d394"/>
-    <rect x="44" y="43" width="18" height="14" rx="3" fill="#f4d394"/>
-  </g>
+  <!-- Anchor chain on the diagonal: two flat links joined by an edge-on link.
+       Links are two-tone (dark edge, brass core) so they read on light and dark backgrounds. -->
+  <g transform="translate(32 32) rotate(-45)">
+    <!-- Flat links -->
+    <g fill="none">
+      <rect x="-31" y="-10" width="27" height="20" rx="10" stroke="#1c2433" stroke-width="8"/>
+      <rect x="-31" y="-10" width="27" height="20" rx="10" stroke="#e3a43f" stroke-width="4"/>
+      <rect x="4" y="-10" width="27" height="20" rx="10" stroke="#1c2433" stroke-width="8"/>
+      <rect x="4" y="-10" width="27" height="20" rx="10" stroke="#e3a43f" stroke-width="4"/>
+    </g>
 
-  <!-- "Words" on the tiles -->
-  <g stroke="#5b3a1d" stroke-opacity="0.55" stroke-width="2.4" stroke-linecap="round">
-    <path d="M27.5 14H36.5"/>
-    <path d="M17 32H26"/>
-    <path d="M38 32H47"/>
-    <path d="M6.5 50H15.5"/>
-    <path d="M27.5 50H36.5"/>
-    <path d="M48.5 50H57.5"/>
+    <!-- Edge-on link threaded through both -->
+    <rect x="-16" y="-4.5" width="32" height="9" rx="4.5" fill="#f4d394" stroke="#1c2433" stroke-width="3"/>
+
+    <!-- Highlights -->
+    <g stroke="#ffffff" stroke-opacity="0.5" stroke-width="1.6" stroke-linecap="round">
+      <path d="M-24 -10H-12"/>
+      <path d="M11 -10H23"/>
+      <path d="M-9 -1.5H9"/>
+    </g>
   </g>
 </svg>

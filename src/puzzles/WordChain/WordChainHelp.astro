@@ -1,0 +1,126 @@
+---
+// Picture examples for Word Chain's "How to play": little pieces of the pyramid drawn like the real
+// board, each marked as allowed or not. The line being checked is colored: seafoam works, coral doesn't.
+
+interface Example {
+  ok: boolean;
+  caption: string;
+  top: string;
+  /** Words under `top`, each with whether its line makes a phrase */
+  below: { word: string; ok: boolean }[];
+}
+
+const examples: Example[] = [
+  {
+    ok: true,
+    caption: "Upper word first: “high tide”",
+    top: "HIGH",
+    below: [{ word: "TIDE", ok: true }],
+  },
+  {
+    ok: false,
+    caption: "Upside down: “tide high”",
+    top: "TIDE",
+    below: [{ word: "HIGH", ok: false }],
+  },
+  {
+    ok: true,
+    caption: "Both words below pair with it",
+    top: "TIDE",
+    below: [{ word: "POOL", ok: true }, { word: "CHART", ok: true }],
+  },
+  {
+    ok: false,
+    caption: "One pair isn’t a phrase",
+    top: "TIDE",
+    below: [{ word: "POOL", ok: true }, { word: "BOAT", ok: false }],
+  },
+];
+
+// Board pieces in a 200 × 110 box: one word on top, one or two below it
+const W = 80;
+const H = 32;
+const BELOW_Y = 78;
+const TOP_X = 100;
+
+function belowX(count: number, i: number) {
+  return count === 1 ? TOP_X : [50, 150][i];
+}
+
+/** The same arch the real board draws: from behind the upper word down to the top of the lower one */
+function line(x2: number) {
+  const x1 = TOP_X;
+  const y1 = H * 0.4;
+  const y2 = BELOW_Y + 2;
+  const k = 0.5523;
+  return `M ${x1} ${y1} C ${x1 + (x2 - x1) * k} ${y1}, ${x2} ${y2 - (y2 - y1) * k}, ${x2} ${y2}`;
+}
+---
+
+<div class="word-chain-help mt-5">
+  <p class="text-sm font-semibold text-ink">Examples</p>
+
+  <ul class="mt-3 grid grid-cols-2 gap-2.5">
+    {examples.map(({ ok, caption, top, below }) => (
+      <li class="flex flex-col items-center gap-2 rounded-xl p-3 ring-1 ring-line">
+        <svg class="h-14 w-auto" viewBox="-4 -4 208 118" aria-hidden="true">
+          {below.map(({ ok: lineOk }, i) => (
+            <path d={line(belowX(below.length, i))} class:list={["line", lineOk ? "line--ok" : "line--bad"]} />
+          ))}
+
+          {[{ word: top, x: TOP_X, y: 0 }, ...below.map(({ word }, i) => ({ word, x: belowX(below.length, i), y: BELOW_Y }))].map(
+            ({ word, x, y }) => (
+              <g>
+                <rect class="tile" x={x - W / 2} y={y} width={W} height={H} rx="8" />
+                <text class="word" x={x} y={y + H / 2}>{word}</text>
+              </g>
+            )
+          )}
+        </svg>
+
+        <p class="flex items-start gap-1.5 text-center text-xs leading-snug font-medium text-ink">
+          {ok ? (
+            <svg class="mt-px h-3.5 w-3.5 shrink-0 text-seafoam-strong" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-label="Allowed">
+              <path d="M20 6 9 17l-5-5"></path>
+            </svg>
+          ) : (
+            <svg class="mt-px h-3.5 w-3.5 shrink-0 text-coral-strong" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-label="Not allowed">
+              <path d="M18 6 6 18M6 6l12 12"></path>
+            </svg>
+          )}
+          {caption}
+        </p>
+      </li>
+    ))}
+  </ul>
+
+  <p class="mt-4 text-xs leading-relaxed text-muted">
+    Tip: start with words that only pair one way, then tap their line to link them so they stay together.
+  </p>
+</div>
+
+<style>
+  .tile {
+    fill: rgb(var(--surface));
+    stroke: rgb(var(--ink) / 0.25);
+    stroke-width: 1.5;
+  }
+
+  .word {
+    fill: rgb(var(--ink));
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    text-anchor: middle;
+    dominant-baseline: central;
+  }
+
+  .line {
+    fill: none;
+    stroke-width: 5;
+    stroke-linecap: round;
+  }
+
+  .line--ok { stroke: rgb(var(--seafoam-strong)); }
+  .line--bad { stroke: rgb(var(--coral-strong)); }
+</style>

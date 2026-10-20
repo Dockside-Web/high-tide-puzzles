@@ -8,7 +8,8 @@ interface Props {
 const { compact = false } = Astro.props;
 ---
 
-<header class="sticky top-0 z-20 bg-canvas/85 backdrop-blur-md">
+<!-- On puzzle pages (compact) a hairline keeps the site bar apart from the puzzle's own title row -->
+<header class:list={["sticky top-0 z-20 bg-canvas/85 backdrop-blur-md", compact && "border-b border-line"]}>
   <div class:list={["mx-auto flex w-full max-w-6xl items-center justify-between px-6 sm:px-8", compact ? "h-14" : "h-20"]}>
     <a
       href="/"

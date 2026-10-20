@@ -9,9 +9,11 @@ interface Props {
   description: string;
   /** Slimmer site header, used on puzzle pages to give the board more room */
   compact?: boolean;
+  /** Show the site footer (only the homepage has one) */
+  footer?: boolean;
 }
 
-const { title, description, compact = false } = Astro.props;
+const { title, description, compact = false, footer = false } = Astro.props;
 ---
 
 <!doctype html>
@@ -43,6 +45,6 @@ const { title, description, compact = false } = Astro.props;
     <main class="flex-1">
       <slot />
     </main>
-    <Footer />
+    {footer && <Footer />}
   </body>
 </html>

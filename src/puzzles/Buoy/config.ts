@@ -3,17 +3,13 @@ import Buoy from "./Buoy.astro";
 import icon from "./buoy.svg";
 
 const config: PuzzleConfig = {
-  slug: "buoy-puzzle",
-  name: "Buoy Puzzle",
+  slug: "buoy",
+  name: "Buoy",
   component: Buoy,
   icon,
   color: "coral",
-  instructions: "This is a buoy puzzle for demonstration purposes.",
-  difficulties: [
-    { id: "easy", label: "Easy" },
-    { id: "hard", label: "Hard" }
-  ],
-  plusMode: true,
+  tagline: "Match every row, column and region count.",
+  instructions: "This is Buoy, shown for demonstration purposes.",
   toolbar: {
     undo: true,
     hint: true,

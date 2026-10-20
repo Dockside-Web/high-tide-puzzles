@@ -2,13 +2,13 @@
 import { info } from "../../data/info";
 
 const linkClass =
-  "inline-flex items-center gap-2 rounded-md font-semibold text-ink transition-colors duration-150 ease-smooth hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60";
+  "inline-flex items-center gap-2 rounded-md text-sm font-medium text-ink transition-colors duration-150 ease-smooth hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60";
 ---
 
-<section id="contact" aria-labelledby="contact-heading" class="mx-auto mt-16 w-full max-w-6xl scroll-mt-24 px-6 sm:px-8">
+<section id="contact" aria-labelledby="contact-heading" class="mx-auto mt-12 w-full max-w-6xl scroll-mt-24 px-6 sm:px-8">
   <div class="grid gap-4 md:grid-cols-[1fr_2fr] md:gap-12">
     <div>
-      <h2 id="contact-heading" class="font-display text-xl font-bold tracking-tight text-ink">
+      <h2 id="contact-heading" class="font-display text-base font-bold tracking-tight text-ink">
         Contact
       </h2>
       <p class="mt-1 text-sm leading-relaxed text-muted">
@@ -18,14 +18,14 @@ const linkClass =
 
     <div class="flex flex-wrap items-center gap-x-8 gap-y-3 md:pt-1">
       <a href={info.emailHref} class={linkClass}>
-        <svg aria-hidden="true" class="h-5 w-5 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <svg aria-hidden="true" class="h-4 w-4 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
           <rect x="2" y="4" width="20" height="16" rx="2"></rect>
           <path d="m22 6-10 7L2 6"></path>
         </svg>
         {info.email}
       </a>
       <a href={info.coffeeLink} target="_blank" rel="noreferrer" class={linkClass}>
-        <svg aria-hidden="true" class="h-5 w-5 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <svg aria-hidden="true" class="h-4 w-4 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
           <path d="M17 8h1a4 4 0 1 1 0 8h-1M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"></path>
           <path d="M6 1v3M10 1v3M14 1v3"></path>
         </svg>

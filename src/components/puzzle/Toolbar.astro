@@ -8,11 +8,22 @@ interface Props {
 const { config } = Astro.props;
 
 // Order here is the order buttons appear in. Clicking dispatches "puzzle:<action>".
-const actions: { action: keyof PuzzleToolbarConfig; label: string; icon: string }[] = [
+// Actions with `confirm` ask first: the first tap swaps the label to that text, and only a second
+// tap within a few seconds goes ahead.
+// A puzzle can change a button while it plays (e.g. "Check (2)") by firing "puzzle:toolbar-update"
+// with { action, label?, confirm?, disabled? }; confirm: null stops it asking.
+const actions: { action: keyof PuzzleToolbarConfig; label: string; icon: string; confirm?: string }[] = [
   { action: "undo", label: "Undo", icon: '<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>' },
   { action: "redo", label: "Redo", icon: '<path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/>' },
   { action: "erase", label: "Erase", icon: '<path d="M20 20H7L3 16c-1.5-1.5-1.5-3.5 0-5l7-7c1.5-1.5 3.5-1.5 5 0l5 5c1.5 1.5 1.5 3.5 0 5l-5 5z"/>' },
   { action: "hint", label: "Hint", icon: '<path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V16h8v-1.3A7 7 0 0 0 12 2z"/>' },
+  { action: "check", label: "Check", icon: '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>' },
+  {
+    action: "reveal",
+    label: "Reveal",
+    confirm: "Sure?",
+    icon: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  },
   { action: "reset", label: "Reset", icon: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>' },
 ];
 
@@ -21,24 +32,59 @@ const visible = actions.filter(({ action }) => config[action]);
 
 {visible.length > 0 && (
   <div class="flex items-center justify-center gap-1 sm:gap-2">
-    {visible.map(({ action, label, icon }) => (
+    {visible.map(({ action, label, icon, confirm }) => (
       <button
         type="button"
         data-action={action}
-        class="flex min-w-16 cursor-pointer flex-col items-center gap-1 rounded-full px-4 py-2 text-xs font-semibold text-ink/80 transition-colors hover:bg-puzzle/15 hover:text-puzzle-strong sm:flex-row sm:gap-1.5 sm:text-sm"
+        data-confirm={confirm}
+        class="flex min-w-16 cursor-pointer flex-col items-center gap-1 rounded-full px-4 py-2 text-xs font-semibold text-ink/80 transition-colors enabled:hover:bg-puzzle/15 enabled:hover:text-puzzle-strong disabled:cursor-default disabled:opacity-40 data-armed:bg-puzzle/15 data-armed:text-puzzle-strong sm:flex-row sm:gap-1.5 sm:text-sm"
       >
         <svg class="h-5 w-5 sm:h-4 sm:w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <Fragment set:html={icon} />
         </svg>
-        {label}
+        <span data-label={label}>{label}</span>
       </button>
     ))}
   </div>
 )}
 
 <script>
+  const CONFIRM_MS = 3000;
+
   document.querySelectorAll<HTMLButtonElement>("[data-action]").forEach((button) => {
+    const label = button.querySelector<HTMLElement>("[data-label]")!;
+    let disarmTimer = 0;
+
+    function disarm() {
+      window.clearTimeout(disarmTimer);
+      delete button.dataset.armed;
+      label.textContent = label.dataset.label!;
+    }
+
+    window.addEventListener("puzzle:toolbar-update", (e) => {
+      const { action, label: text, confirm, disabled } = (e as CustomEvent<{
+        action: string;
+        label?: string;
+        confirm?: string | null;
+        disabled?: boolean;
+      }>).detail;
+      if (action !== button.dataset.action) return;
+      if (text !== undefined) label.dataset.label = text;
+      if (confirm === null) delete button.dataset.confirm;
+      else if (confirm !== undefined) button.dataset.confirm = confirm;
+      if (disabled !== undefined) button.disabled = disabled;
+      disarm();
+    });
+
     button.addEventListener("click", () => {
+      const confirmText = button.dataset.confirm;
+      if (confirmText && button.dataset.armed === undefined) {
+        button.dataset.armed = "true";
+        label.textContent = confirmText;
+        disarmTimer = window.setTimeout(disarm, CONFIRM_MS);
+        return;
+      }
+      if (confirmText) disarm();
       window.dispatchEvent(new CustomEvent(`puzzle:${button.dataset.action}`));
     });
   });

@@ -1,6 +1,7 @@
 import type { PuzzleConfig } from "../types";
 import SeaGlass from "./SeaGlass.astro";
 import icon from "./sea-glass.svg";
+import SeaGlassHelp from "./SeaGlassHelp.astro";
 
 const config: PuzzleConfig = {
   slug: "sea-glass",
@@ -8,10 +9,17 @@ const config: PuzzleConfig = {
   component: SeaGlass,
   icon,
   color: "seafoam",
+  tagline: "Fit the tiles so every edge matches.",
   instructions:
-    "Drag every tile from the bank onto the board. Touching edges of neighbouring tiles must be the same color, and black edges belong only on the outside border — every outside edge must be black. Tiles can't be rotated. Drop a tile on another to swap them.",
+    "Drag every tile from the bank onto the board. Wherever two tiles touch, the edges must be the same color, and every edge on the outside of the board must be black. Tiles can't be rotated; drop one tile on another to swap them.",
+  helpExamples: SeaGlassHelp,
+  difficulties: [
+    { id: "easy", label: "Easy" },
+    { id: "hard", label: "Hard" }
+  ],
   settings: false,
   toolbar: {
+    reveal: true,
     reset: true
   },
   isNew: true

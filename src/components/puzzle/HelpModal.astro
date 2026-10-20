@@ -1,43 +1,77 @@
 ---
 import type { SvgComponent } from "astro/types";
 
+// "How to play" for a puzzle: its instructions, plus any picture examples the puzzle passes in
+// the slot. Opens from the header button, and by itself the first time someone visits a puzzle.
+// The timer pauses while it's open and picks back up when it closes.
+
 interface Props {
+  slug: string;
   name: string;
   icon: SvgComponent;
   instructions: string;
 }
 
-const { name, icon: Icon, instructions } = Astro.props;
+const { slug, name, icon: Icon, instructions } = Astro.props;
 ---
 
 <dialog
   id="help-modal"
-  class="m-auto w-[90vw] max-w-md overflow-hidden rounded-2xl bg-surface p-0 text-ink shadow-xl ring-1 ring-puzzle/30 backdrop:bg-ink/50 backdrop:backdrop-blur-sm"
+  data-slug={slug}
+  class="m-auto max-h-[88dvh] w-[92vw] max-w-lg overflow-hidden rounded-2xl bg-surface p-0 text-ink shadow-xl ring-1 ring-line backdrop:bg-ink/50 backdrop:backdrop-blur-sm"
 >
-  <div class="flex items-center gap-3 border-b border-puzzle/25 bg-puzzle/15 px-5 pt-5 pb-4 sm:px-6">
-    <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface shadow-sm">
-      <Icon class="h-6 w-6" aria-hidden="true" />
-    </span>
-    <h2 class="flex-1 font-display text-lg font-bold sm:text-xl">How to play {name}</h2>
-    <button id="close-modal" type="button" class="cursor-pointer rounded-full p-1 text-muted hover:bg-surface hover:text-ink" aria-label="Close help">
-      <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-        <path d="M18 6L6 18M6 6l12 12"></path>
-      </svg>
-    </button>
-  </div>
+  <div class="flex max-h-[88dvh] flex-col">
+    <div class="flex items-center gap-3 border-b border-line px-5 pt-5 pb-4 sm:px-6">
+      <Icon class="h-9 w-9 shrink-0" aria-hidden="true" />
+      <h2 class="flex-1 font-display text-lg font-bold sm:text-xl">How to play {name}</h2>
+      <button id="close-modal" type="button" class="cursor-pointer rounded-full p-1 text-muted hover:bg-ink/5 hover:text-ink" aria-label="Close help">
+        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M18 6L6 18M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
 
-  <p class="px-5 pt-3 pb-6 text-sm leading-relaxed text-muted sm:px-6">
-    {instructions}
-  </p>
+    <div class="overflow-y-auto px-5 pt-4 pb-5 sm:px-6">
+      <p class="text-sm leading-relaxed text-muted">{instructions}</p>
+      <slot />
+    </div>
+
+    <div class="border-t border-line px-5 py-3 sm:px-6">
+      <button
+        id="help-done"
+        type="button"
+        class="w-full cursor-pointer rounded-full bg-puzzle-strong px-5 py-2.5 text-sm font-semibold text-on-color transition-transform hover:scale-[1.02]"
+      >
+        Got it
+      </button>
+    </div>
+  </div>
 </dialog>
 
 <script>
-  const modal = document.getElementById("help-modal") as HTMLDialogElement | null;
+  const modal = document.getElementById("help-modal") as HTMLDialogElement;
+  const seenKey = `help-seen:${modal.dataset.slug}`;
 
-  document.getElementById("help-btn")?.addEventListener("click", () => {
-    modal?.showModal();
+  function open() {
+    modal.showModal();
     window.dispatchEvent(new Event("puzzle:pause"));
-  });
+  }
 
-  document.getElementById("close-modal")?.addEventListener("click", () => modal?.close());
+  document.getElementById("help-btn")?.addEventListener("click", open);
+  document.getElementById("close-modal")?.addEventListener("click", () => modal.close());
+  document.getElementById("help-done")?.addEventListener("click", () => modal.close());
+  // A click on the dimmed backdrop lands on the dialog itself
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) modal.close();
+  });
+  // Covers every way of closing, Esc included
+  modal.addEventListener("close", () => window.dispatchEvent(new Event("puzzle:resume")));
+
+  // First visit to this puzzle: show the rules straight away (storage can be blocked, so it's optional)
+  let seen = true;
+  try {
+    seen = localStorage.getItem(seenKey) !== null;
+    localStorage.setItem(seenKey, "1");
+  } catch {}
+  if (!seen) open();
 </script>

@@ -33,6 +33,10 @@ const edges = pyramidNodes
   ]);
 
 const rows = [0, 1, 2, 3].map((r) => pyramidNodes.filter((n) => n.row === r));
+
+// Every correct "upper lower" phrase. Check compares links against these, so a pair counts
+// wherever it sits on the board (and with the lower word on either side).
+const answer = edges.map(({ parentId, childId }) => `${pyramidNodes[parentId].text} ${pyramidNodes[childId].text}`);
 ---
 
 <!--
@@ -41,8 +45,11 @@ const rows = [0, 1, 2, 3].map((r) => pyramidNodes.filter((n) => n.row === r));
   - Words (tiles) are drag-only, with no selected state. Dragging a linked word carries its whole
     linked group, which can only land on its own spaces or unlinked words (those slide into the
     spaces the group left). A word may switch to the other side under its parent if needed.
+  - Check (toolbar) tests every link: correct ones turn green and lock for good, wrong ones flash.
+    There are 3 checks. After that the button becomes "Final check", which grades the whole
+    pyramid: all right is solved, anything wrong ends the game.
 -->
-<div class="pyramid" data-puzzle-root>
+<div class="pyramid" data-puzzle-root data-answer={JSON.stringify(answer)}>
   <svg class="pyramid__lines" data-edges-svg aria-hidden="true">
     {edges.map(({ parentId, childId, isLeft }) => (
       <g data-edge-group data-parent={parentId} data-child={childId} data-is-left={isLeft ? "true" : "false"}>
@@ -124,6 +131,40 @@ const rows = [0, 1, 2, 3].map((r) => pyramidNodes.filter((n) => n.row === r));
     stroke-width: 4;
   }
 
+  /* Checked and correct: green, and the line can't be tapped off any more */
+  [data-edge-group].is-locked .pyramid__edge {
+    stroke: rgb(var(--seafoam-strong));
+    stroke-width: 4;
+  }
+
+  [data-edge-group].is-locked .pyramid__edge-hit {
+    pointer-events: none;
+  }
+
+  /* Checked and wrong: a short coral flash */
+  [data-edge-group].is-wrong .pyramid__edge {
+    stroke: rgb(var(--coral-strong));
+    stroke-width: 4;
+    animation: pyramid-wrong 0.6s ease;
+  }
+
+  /* Final check failed: wrong lines stay coral */
+  [data-edge-group].is-failed .pyramid__edge {
+    stroke: rgb(var(--coral-strong));
+    stroke-width: 4;
+  }
+
+  /* Game over (solved or failed): the board can't be changed */
+  .pyramid.is-over .pyramid__tile,
+  .pyramid.is-over .pyramid__edge-hit {
+    pointer-events: none;
+  }
+
+  @keyframes pyramid-wrong {
+    0%, 50% { opacity: 1; }
+    25%, 75% { opacity: 0.35; }
+  }
+
   /* Rows are a container so tiles can size off the full board width */
   .pyramid__rows {
     position: relative;
@@ -180,6 +221,11 @@ const rows = [0, 1, 2, 3].map((r) => pyramidNodes.filter((n) => n.row === r));
 
   .pyramid__tile:active {
     cursor: grabbing;
+  }
+
+  .pyramid__tile.is-locked {
+    border-color: rgb(var(--seafoam-strong));
+    background: color-mix(in srgb, rgb(var(--seafoam)) 18%, rgb(var(--surface)));
   }
 
   .pyramid__tile.is-drop-target {
@@ -259,19 +305,98 @@ const rows = [0, 1, 2, 3].map((r) => pyramidNodes.filter((n) => n.row === r));
     const LAST = tiles.length - 1;
     const words = tiles.map((t) => t.querySelector("[data-text]")?.textContent ?? "");
     const links = new Set<number>();
+    // Links that passed a check. Stored the same way as `links` (and always also in it)
+    const locked = new Set<number>();
+    const answer = new Set<string>(JSON.parse(root.dataset.answer ?? "[]"));
 
     const parentOf = (p: number) => (p - 1) >> 1;
     const tileAt = (p: number) => tileById(p)!;
 
     function render() {
       tiles.forEach((tile) => {
+        const p = Number(tile.dataset.id);
         const text = tile.querySelector("[data-text]");
-        if (text) text.textContent = words[Number(tile.dataset.id)];
+        if (text) text.textContent = words[p];
+        const lockedHere = locked.has(p) || locked.has(2 * p + 1) || locked.has(2 * p + 2);
+        tile.classList.toggle("is-locked", lockedHere);
       });
       edgeGroups.forEach((group) => {
-        group.classList.toggle("is-active", links.has(Number(group.dataset.child)));
+        const child = Number(group.dataset.child);
+        group.classList.toggle("is-active", links.has(child) && !locked.has(child));
+        group.classList.toggle("is-locked", locked.has(child));
       });
     }
+
+    // ---------- Checking ----------
+    const CHECKS = 3;
+    let checksLeft = CHECKS;
+    let over = false;
+
+    const isRight = (child: number) => answer.has(`${words[parentOf(child)]} ${words[child]}`);
+    const edgeGroupFor = (child: number) => edgeGroups.find((g) => Number(g.dataset.child) === child);
+
+    function updateCheckButton() {
+      const detail = over
+        ? { action: "check", disabled: true }
+        : checksLeft > 0
+          ? { action: "check", label: `Check (${checksLeft})`, confirm: null }
+          : { action: "check", label: "Final check", confirm: "Sure?" };
+      window.dispatchEvent(new CustomEvent("puzzle:toolbar-update", { detail }));
+    }
+
+    function endGame(solved: boolean) {
+      over = true;
+      root.classList.add("is-over");
+      updateCheckButton();
+      if (solved) window.dispatchEvent(new Event("puzzle:solved"));
+      else window.dispatchEvent(new CustomEvent("puzzle:failed", { detail: { message: "The final check found phrases that don't fit. The wrong lines are marked in coral." } }));
+    }
+
+    /** One of the 3 checks: grades only the linked lines, locking the right ones */
+    function check() {
+      const pending = [...links].filter((child) => !locked.has(child));
+      if (pending.length === 0) return; // nothing new linked, so don't spend a check
+
+      checksLeft--;
+      const wrong = pending.filter((child) => !isRight(child));
+      pending.filter(isRight).forEach((child) => locked.add(child));
+      render();
+
+      wrong.forEach((child) => {
+        const group = edgeGroupFor(child);
+        if (!group) return;
+        group.classList.remove("is-wrong");
+        void group.getBoundingClientRect(); // restart the flash if it's already showing
+        group.classList.add("is-wrong");
+        group.addEventListener("animationend", () => group.classList.remove("is-wrong"), { once: true });
+      });
+
+      // Every line locked in means every phrase is right
+      if (locked.size === LAST) endGame(true);
+      else updateCheckButton();
+    }
+
+    /** After the 3 checks: the whole pyramid has to be right, linked or not */
+    function finalCheck() {
+      for (let child = 1; child <= LAST; child++) {
+        if (!isRight(child)) continue;
+        links.add(child);
+        locked.add(child);
+      }
+      render();
+
+      const wrong = edgeGroups.filter((g) => !isRight(Number(g.dataset.child)));
+      wrong.forEach((g) => g.classList.add("is-failed"));
+      endGame(wrong.length === 0);
+    }
+
+    window.addEventListener("puzzle:check", () => {
+      if (over) return;
+      if (checksLeft > 0) check();
+      else finalCheck();
+    });
+    // The toolbar's script may run after this one, so set the label once the page is ready
+    document.addEventListener("DOMContentLoaded", updateCheckButton);
 
     /** All positions joined to p by links (just [p] if it's a loose card). Sorted, so the group's root is first. */
     function groupOf(p: number) {
@@ -348,8 +473,11 @@ const rows = [0, 1, 2, 3].map((r) => pyramidNodes.filter((n) => n.row === r));
 
       // The group's links move with it (every member except its root links to its parent)
       const groupLinks = group.slice(1);
+      const groupLocked = groupLinks.filter((p) => locked.has(p));
       groupLinks.forEach((p) => links.delete(p));
+      groupLocked.forEach((p) => locked.delete(p));
       groupLinks.forEach((p) => links.add(mapping.get(p)!));
+      groupLocked.forEach((p) => locked.add(mapping.get(p)!));
 
       render();
     }
@@ -358,6 +486,7 @@ const rows = [0, 1, 2, 3].map((r) => pyramidNodes.filter((n) => n.row === r));
     edgeGroups.forEach((group) => {
       group.querySelector("[data-edge-hit]")?.addEventListener("click", () => {
         const child = Number(group.dataset.child);
+        if (locked.has(child)) return;
         if (links.has(child)) links.delete(child);
         else links.add(child);
         render();

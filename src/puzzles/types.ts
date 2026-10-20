@@ -13,6 +13,10 @@ export interface PuzzleToolbarConfig {
   redo?: boolean;
   erase?: boolean;
   hint?: boolean;
+  /** Check the player's work so far; the puzzle handles "puzzle:check". */
+  check?: boolean;
+  /** Show the answer. Asks for a second tap first; the puzzle handles "puzzle:reveal". */
+  reveal?: boolean;
   reset?: boolean;
 }
 
@@ -27,12 +31,14 @@ export interface PuzzleConfig {
   /** An imported .svg file, drawn inline (so it never gets stuck in the browser cache) */
   icon: SvgComponent;
   color: PuzzleColor;
+  /** One short line under the name on the homepage */
+  tagline: string;
   instructions: string;
+  /** Picture examples shown under the instructions in "How to play" (an Astro component) */
+  helpExamples?: any;
 
   /** Difficulty tabs. Leave empty / out to hide the tabs. */
   difficulties?: Difficulty[];
-  /** Show the Daily / Plus toggle. */
-  plusMode?: boolean;
   /** Show the timer and pause overlay. Defaults to on. */
   timer?: boolean;
   /** Show the settings button. Defaults to on. */

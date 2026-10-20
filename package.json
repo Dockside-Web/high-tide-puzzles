@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "deploy": "astro build && wrangler deploy",
+    "deploy": "npm run check:puzzles && astro build && wrangler deploy",
+    "check:puzzles": "node scripts/check-puzzles.ts",
     "preview": "astro preview",
     "astro": "astro"
   },
