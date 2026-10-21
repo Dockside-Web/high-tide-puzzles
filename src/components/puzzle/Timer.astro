@@ -11,11 +11,11 @@
     class="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-muted transition-colors enabled:hover:bg-ink/5 enabled:hover:text-ink disabled:cursor-default disabled:opacity-40"
     aria-label="Pause timer"
   >
-    <svg id="timer-pause-icon" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+    <svg aria-hidden="true" id="timer-pause-icon" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
       <rect x="6" y="4" width="4" height="16" rx="1"></rect>
       <rect x="14" y="4" width="4" height="16" rx="1"></rect>
     </svg>
-    <svg id="timer-play-icon" class="hidden h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+    <svg aria-hidden="true" id="timer-play-icon" class="hidden h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
       <polygon points="6 3 20 12 6 21 6 3"></polygon>
     </svg>
   </button>
@@ -41,13 +41,24 @@
     timerDisplay.textContent = `${mins}:${secs}`;
   }
 
+  // The board's own content (everything under the pause cover), locked while paused
+  const boardContent = Array.from(document.querySelector("[data-puzzle-board]")?.children ?? []).filter(
+    (el) => el !== pauseOverlay
+  ) as HTMLElement[];
+
   function setPaused(paused: boolean) {
+    // Leaving the cover with focus on Resume: hand focus to the timer button rather than losing it
+    const focusWasOnCover = !!pauseOverlay?.contains(document.activeElement);
     isPaused = paused;
+    boardContent.forEach((el) => (el.inert = paused));
     pauseIcon?.classList.toggle("hidden", paused);
     playIcon?.classList.toggle("hidden", !paused);
     pauseOverlay?.classList.toggle("hidden", !paused);
     pauseOverlay?.classList.toggle("flex", paused);
     timerToggleBtn?.setAttribute("aria-label", paused ? "Resume timer" : "Pause timer");
+    // (Behind the help popup this focus does nothing, which is fine: the popup keeps focus)
+    if (paused) resumeBtn?.focus();
+    else if (focusWasOnCover) timerToggleBtn?.focus();
   }
 
   window.setInterval(() => {

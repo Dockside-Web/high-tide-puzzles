@@ -1,0 +1,79 @@
+<!doctype html>
+<!--
+  The link-preview image (public/og-main.png, 1200x630) shown when the site is shared.
+  To remake it after changing this file, from the project folder:
+    "/c/Program Files/Google/Chrome/Application/chrome.exe" --headless --disable-gpu --hide-scrollbars \
+      --window-size=1200,630 --virtual-time-budget=5000 \
+      --screenshot="$PWD/public/og-main.png" "file:///$PWD/scripts/social-image.html"
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@500&family=Fredoka:wght@700&display=block"
+    />
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+        background: #faf7f0;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 44px;
+        font-family: Inter, sans-serif;
+        color: #102a43;
+      }
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 0.12em;
+        font-family: Fredoka, sans-serif;
+        font-size: 92px;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        color: #13294b;
+        line-height: 1;
+      }
+      .logo img {
+        width: 1.85em;
+        height: 1.85em;
+      }
+      .tagline {
+        margin: 0;
+        font-size: 38px;
+        font-weight: 500;
+        color: #54687a;
+      }
+      .icons {
+        display: flex;
+        gap: 36px;
+      }
+      .icons img {
+        width: 84px;
+        height: 84px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="logo">
+      <span>High Tide</span>
+      <img src="../src/puzzles/Buoy/buoy.svg" alt="" />
+      <span>Puzzles</span>
+    </div>
+    <p class="tagline">Free daily puzzles. A new challenge every day.</p>
+    <div class="icons">
+      <img src="../src/puzzles/SeaGlass/sea-glass.svg" alt="" />
+      <img src="../src/puzzles/WordChain/word-chain.svg" alt="" />
+      <img src="../src/puzzles/Bridges/bridges.svg" alt="" />
+    </div>
+  </body>
+</html>

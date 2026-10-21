@@ -1,0 +1,47 @@
+---
+import Layout from "./Layout.astro";
+import { info } from "../data/info";
+
+// Shared frame for the legal pages: heading, a card with the "Last Updated" date, the page's
+// sections (the slot), and a Contact section at the end.
+
+interface Props {
+  title: string;
+  description: string;
+  /** e.g. "October 21, 2026" */
+  lastUpdated: string;
+}
+
+const { title, description, lastUpdated } = Astro.props;
+---
+
+<Layout title={title} description={description} footer>
+  <div class="px-4 pt-10 pb-4 sm:px-6 sm:pt-14 lg:px-8">
+    <div class="mx-auto max-w-4xl">
+      <h1 class="font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">{title}</h1>
+      <p class="mt-1 text-sm font-medium text-muted">{info.name}</p>
+    </div>
+
+    <div class="mx-auto mt-8 max-w-4xl overflow-hidden rounded-lg bg-surface shadow-lg ring-1 ring-line">
+      <div class="space-y-8 px-6 py-8 sm:px-10">
+        <div class="border-l-4 border-accent bg-band p-4">
+          <p class="text-sm font-semibold text-ink/80">
+            Last Updated: <span class="text-accent">{lastUpdated}</span>
+          </p>
+        </div>
+
+        <slot />
+
+        <section class="rounded-lg border border-line bg-canvas p-6">
+          <h2 class="mb-4 font-display text-2xl font-bold text-ink">Contact Us</h2>
+          <div class="space-y-2 text-ink/80">
+            <p class="text-lg font-semibold">{info.name}</p>
+            <p>
+              Email: <a href={info.emailHref} class="text-accent hover:underline">{info.email}</a>
+            </p>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</Layout>

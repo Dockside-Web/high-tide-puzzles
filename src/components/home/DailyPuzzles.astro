@@ -21,7 +21,7 @@ import { puzzleColorStyle } from "../../puzzles/types";
     {PUZZLE_LIST.map(({ icon: Icon, ...puzzle }) => (
       <li style={puzzleColorStyle(puzzle.color)}>
         <a
-          href={puzzle.slug}
+          href={`/${puzzle.slug}/`}
           class="group flex items-center gap-4 rounded-2xl bg-surface px-4 py-4 ring-1 ring-line transition-[background-color,box-shadow] duration-200 ease-smooth hover:bg-puzzle/10 hover:ring-puzzle/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-puzzle sm:px-5"
         >
           <Icon

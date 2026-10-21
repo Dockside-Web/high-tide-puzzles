@@ -1,10 +1,183 @@
 ---
-import Layout from "../../layouts/Layout.astro";
+import LegalLayout from "../../layouts/LegalLayout.astro";
+import { info } from "../../data/info";
 
-const pageTitle = "Page Not Found";
-const metaDescription = "This page doesn't exist.";
+const lastUpdatedDate = "October 21, 2026";
+
+const pageTitle = "Terms of Service";
+const metaDescription = `View the Terms of Service for ${info.name}. Review the conditions for using our free daily puzzles.`;
+
+const h2 = "mb-4 font-display text-2xl font-bold text-ink";
+const body = "text-ink/80";
+const note = "rounded-md border border-accent/25 bg-accent/5 p-3";
+const link = "text-accent hover:underline";
 ---
 
-<Layout title={pageTitle} description={metaDescription}>
-  
-</Layout>
+<LegalLayout title={pageTitle} description={metaDescription} lastUpdated={lastUpdatedDate}>
+  <!-- Introduction -->
+  <div>
+    <p class={`${body} leading-relaxed`}>
+      These Terms of Service ("Terms") govern your access to and use of the {info.name} website (the
+      "Site"). By accessing or using the Site, you agree to these Terms.
+    </p>
+  </div>
+
+  <!-- Section 1 -->
+  <section>
+    <h2 class={h2}>1) Who We Are</h2>
+    <p class={body}>
+      {info.name} ("we," "us," or "our") offers free daily puzzles that anyone can play in a web
+      browser, with no account required.
+    </p>
+  </section>
+
+  <!-- Section 2 -->
+  <section>
+    <h2 class={h2}>2) Eligibility</h2>
+    <p class={body}>
+      The Site is intended for users age 13 and older. By using the Site, you represent that you are at
+      least 13 years old.
+    </p>
+  </section>
+
+  <!-- Section 3 -->
+  <section>
+    <h2 class={h2}>3) Permitted Use</h2>
+    <p class={body}>
+      You may use the Site for your own personal, non-commercial enjoyment, for lawful purposes and in
+      accordance with these Terms. You agree not to misuse the Site, interfere with its operation, probe
+      or scan for vulnerabilities, attempt to access non-public areas or systems, or use automated means
+      to access the Site, copy its puzzles, or degrade its performance.
+    </p>
+  </section>
+
+  <!-- Section 4 -->
+  <section>
+    <h2 class={h2}>4) Contacting Us</h2>
+    <p class={body}>
+      If you contact us, you agree that the information you provide is accurate and that you have the
+      right to provide it. You also agree not to send unlawful, infringing, or harmful content.
+    </p>
+  </section>
+
+  <!-- Section 5 -->
+  <section>
+    <h2 class={h2}>5) No User-Generated Content</h2>
+    <p class={body}>
+      The Site does not allow public posting or user-generated content (such as comments, reviews, or
+      uploads). Content on the Site is provided and maintained by {info.name}.
+    </p>
+  </section>
+
+  <!-- Section 6 -->
+  <section>
+    <h2 class={h2}>6) Free Service and Optional Support</h2>
+    <p class={body}>
+      The puzzles are free to play. Support through external services such as Buy Me a Coffee is
+      entirely optional, is a voluntary contribution rather than a purchase, and does not unlock any
+      features or create any obligation for us to provide a service. Contributions are handled by that
+      service under its own terms.
+    </p>
+  </section>
+
+  <!-- Section 7 -->
+  <section>
+    <h2 class={h2}>7) Intellectual Property (Site Content)</h2>
+    <p class={body}>
+      The Site and its content (including the puzzles, text, graphics, icons, logos, and design) are
+      owned by {info.name} or our licensors and are protected by applicable intellectual property laws.
+      You may not copy, reproduce, modify, distribute, or create derivative works from the Site or its
+      puzzles without our prior written permission, except as permitted by law. Sharing your own results
+      or a link to the Site is always welcome.
+    </p>
+  </section>
+
+  <!-- Section 8 -->
+  <section>
+    <h2 class={h2}>8) Third-Party Services and Links</h2>
+    <p class={`${body} mb-3`}>
+      The Site uses or links to third-party services (for example, Cloudflare for hosting, Google Fonts
+      for fonts, and Buy Me a Coffee for optional support). Third-party services are governed by their
+      own terms and policies, and we are not responsible for third-party content, practices, or
+      availability.
+    </p>
+    <div class={note}>
+      <p class="text-sm text-ink/80">
+        <span class="font-semibold">Note:</span> We use Cloudflare for website hosting. Its terms can be
+        found at
+        <a href="https://www.cloudflare.com/terms/" class={link} target="_blank" rel="noopener noreferrer">cloudflare.com/terms</a>.
+      </p>
+    </div>
+  </section>
+
+  <!-- Section 9 -->
+  <section>
+    <h2 class={h2}>9) Disclaimers</h2>
+    <p class={body}>
+      The Site is provided on an "as is" and "as available" basis. We do not warrant that the Site will
+      be uninterrupted, error-free, or secure, or that any puzzle or content is accurate or complete.
+      Your use of the Site is at your own risk.
+    </p>
+  </section>
+
+  <!-- Section 10 -->
+  <section>
+    <h2 class={h2}>10) Limitation of Liability</h2>
+    <p class={body}>
+      To the maximum extent permitted by law, {info.name} will not be liable for any indirect,
+      incidental, special, consequential, or punitive damages, or any loss of data (including puzzle
+      progress), arising out of or related to your use of (or inability to use) the Site.
+    </p>
+  </section>
+
+  <!-- Section 11 -->
+  <section>
+    <h2 class={h2}>11) Indemnification</h2>
+    <p class={body}>
+      You agree to indemnify and hold harmless {info.name} from and against claims, liabilities,
+      damages, losses, and expenses (including reasonable attorneys' fees) arising from your misuse of
+      the Site or violation of these Terms.
+    </p>
+  </section>
+
+  <!-- Section 12 -->
+  <section>
+    <h2 class={h2}>12) Termination / Restriction of Access</h2>
+    <p class={body}>
+      We may suspend or restrict your access to the Site (including blocking access from certain IP
+      addresses) if we reasonably believe you are violating these Terms, attempting to harm the Site or
+      other users, or using the Site in an unlawful manner. This section does not limit any other rights
+      or remedies we may have.
+    </p>
+  </section>
+
+  <!-- Section 13 -->
+  <section>
+    <h2 class={h2}>13) Availability and Saved Progress</h2>
+    <p class={body}>
+      We aim to keep the Site available, but we do not guarantee uninterrupted access. The Site may be
+      temporarily unavailable due to maintenance, updates, hosting outages, or circumstances outside our
+      control. Puzzles may change or be removed at any time. Your progress is saved only in your
+      browser, so it can be lost if you clear your browser data or switch devices.
+    </p>
+  </section>
+
+  <!-- Section 14 -->
+  <section>
+    <h2 class={h2}>14) Changes to the Site or Terms</h2>
+    <p class={body}>
+      We may modify the Site or these Terms at any time. Updated Terms will be posted on this page with a
+      new "Last Updated" date. Continued use of the Site after changes become effective means you accept
+      the updated Terms.
+    </p>
+  </section>
+
+  <!-- Section 15 -->
+  <section>
+    <h2 class={h2}>15) Governing Law</h2>
+    <p class={body}>
+      These Terms are governed by and construed in accordance with applicable laws, without regard to
+      conflict-of-laws principles.
+    </p>
+  </section>
+</LegalLayout>

@@ -103,11 +103,11 @@ function triangles(edges: string, x: number, y: number) {
 
         <p class="flex items-start gap-1.5 text-center text-xs leading-snug font-medium text-ink">
           {ok ? (
-            <svg class="mt-px h-3.5 w-3.5 shrink-0 text-seafoam-strong" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-label="Allowed">
+            <svg class="mt-px h-3.5 w-3.5 shrink-0 text-seafoam-strong" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Allowed">
               <path d="M20 6 9 17l-5-5"></path>
             </svg>
           ) : (
-            <svg class="mt-px h-3.5 w-3.5 shrink-0 text-coral-strong" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-label="Not allowed">
+            <svg class="mt-px h-3.5 w-3.5 shrink-0 text-coral-strong" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" role="img" aria-label="Not allowed">
               <path d="M18 6 6 18M6 6l12 12"></path>
             </svg>
           )}

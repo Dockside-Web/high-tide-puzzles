@@ -159,8 +159,8 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
     outline: none;
   }
 
-  /* Drawn above any tile in the space: drag target, or an empty space you can tap/tab to while a tile is picked up */
-  .sea-glass__slot.is-drop-target::after,
+  /* Drawn above any tile in the space: an empty space you can tap/tab to while a tile is picked up.
+     (Dragging shows the tile snapped into the space instead.) */
   .sea-glass.is-picking .sea-glass__slot:empty:hover::after,
   .sea-glass__slot:focus-visible::after {
     content: "";
@@ -249,10 +249,37 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
   }
 
+  /* Over a space: sits in it flat, sliding briefly between spaces so the snap doesn't jump */
+  :global(.sea-glass__ghost.is-snapped) {
+    transition: transform 0.08s ease-out !important;
+    box-shadow: none;
+  }
+
+  /* While dragging onto a placed tile, that tile slides to where the dragged one came from */
+  .sea-glass__tile.is-swap-preview {
+    z-index: 1;
+    transition: transform 0.12s ease-out;
+  }
+
+  /* Dropped: a small settle into place */
+  .sea-glass__tile.is-settling {
+    animation: sea-glass-settle 0.16s ease-out;
+  }
+
+  @keyframes sea-glass-settle {
+    from { transform: scale(1.06); }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .sea-glass__loading,
-    .sea-glass__tri.is-wrong {
+    .sea-glass__tri.is-wrong,
+    .sea-glass__tile.is-settling {
       animation: none;
+    }
+
+    :global(.sea-glass__ghost.is-snapped),
+    .sea-glass__tile.is-swap-preview {
+      transition: none !important;
     }
   }
 </style>
@@ -503,24 +530,70 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
       let dx = 0;
       let dy = 0;
       let overSlot: HTMLElement | null = null;
+      let swapping: HTMLElement | null = null; // the placed tile shown sliding over to make room
 
+      /**
+       * The space under a point, by where the spaces are rather than what's drawn there: a tile
+       * sliding over for a swap preview sits on top of a different space than the one it's in.
+       */
       function slotUnder(x: number, y: number) {
-        const slot = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-slot]");
-        return slot && root.contains(slot) ? slot : null;
+        return (
+          allSlots.find((slot) => {
+            const r = slot.getBoundingClientRect();
+            return x >= r.left && x < r.right && y >= r.top && y < r.bottom;
+          }) ?? null
+        );
       }
 
+      /** Over a space: snap the dragged copy into it, and preview the swap if a tile is there. */
       function setOver(slot: HTMLElement | null) {
         if (slot === overSlot) return;
-        overSlot?.classList.remove("is-drop-target");
         overSlot = slot;
-        overSlot?.classList.add("is-drop-target");
+        ghost?.classList.toggle("is-snapped", !!slot);
+        if (slot && ghost) {
+          const rect = slot.getBoundingClientRect();
+          ghost.style.transform = `translate3d(${rect.left}px, ${rect.top}px, 0)`;
+        }
+
+        const other = slot ? tileIn(slot) : null;
+        if (other === swapping) return;
+        clearSwap(true);
+        if (other && other !== tile) {
+          const from = (tile.parentElement as HTMLElement).getBoundingClientRect();
+          const to = slot!.getBoundingClientRect();
+          swapping = other;
+          other.classList.add("is-swap-preview");
+          other.style.transform = `translate(${from.left - to.left}px, ${from.top - to.top}px)`;
+        }
       }
 
-      function cleanup() {
+      /** Ends the swap preview, sliding the tile back home (or straight there, when it's about to move anyway). */
+      function clearSwap(slide: boolean) {
+        if (!swapping) return;
+        if (!slide) swapping.classList.remove("is-swap-preview");
+        swapping.style.transform = "";
+        if (slide) {
+          // A timer rather than transitionend, which never fires with reduced motion
+          const done = swapping;
+          setTimeout(() => done !== swapping && done.classList.remove("is-swap-preview"), 150);
+        }
+        swapping = null;
+      }
+
+      function cleanup(slideBack: boolean) {
         ghost?.remove();
         ghost = null;
         tile.classList.remove("is-dragging");
-        setOver(null);
+        clearSwap(slideBack);
+        overSlot = null;
+      }
+
+      /** A short settle after a drop, so landing still feels like putting the tile down. */
+      function settle(t: HTMLElement) {
+        t.classList.remove("is-settling");
+        void t.offsetWidth; // restart the animation if it's still running
+        t.classList.add("is-settling");
+        t.addEventListener("animationend", () => t.classList.remove("is-settling"), { once: true });
       }
 
       tile.addEventListener("click", () => {
@@ -562,8 +635,10 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
         }
 
         if (!moved || !ghost) return;
-        ghost.style.transform = `translate3d(${e.clientX + dx}px, ${e.clientY + dy}px, 0)`;
-        setOver(slotUnder(e.clientX, e.clientY));
+        const slot = slotUnder(e.clientX, e.clientY);
+        // Between spaces or off the board, follow the pointer; over a space, setOver snaps it in
+        if (!slot) ghost.style.transform = `translate3d(${e.clientX + dx}px, ${e.clientY + dy}px, 0)`;
+        setOver(slot);
       });
 
       tile.addEventListener("pointerup", (e) => {
@@ -573,16 +648,20 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
         if (!moved) return; // a tap: the click handler takes it from here
 
         const target = slotUnder(e.clientX, e.clientY);
-        cleanup();
+        const other = target ? tileIn(target) : null;
+        cleanup(!target);
         moved = false;
         dragged = true;
-        if (target) moveTile(tile, target);
+        if (!target) return;
+        moveTile(tile, target);
+        settle(tile);
+        if (other && other !== tile) settle(other);
       });
 
       tile.addEventListener("pointercancel", () => {
         pointerId = null;
         moved = false;
-        cleanup();
+        cleanup(true);
       });
     }
 

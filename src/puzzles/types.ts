@@ -41,8 +41,6 @@ export interface PuzzleConfig {
   difficulties?: Difficulty[];
   /** Show the timer and pause overlay. Defaults to on. */
   timer?: boolean;
-  /** Show the settings button. Defaults to on. */
-  settings?: boolean;
   toolbar?: PuzzleToolbarConfig;
 
   isNew?: boolean;

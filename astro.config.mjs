@@ -3,7 +3,7 @@ import tailwindcss from "@tailwindcss/vite";
 import sitemap from "@astrojs/sitemap";
 
 export default defineConfig({
-  //UPDATE THIS FOR EVERY NEW CLIENT
+  // The live domain. Canonical links, the sitemap, robots.txt and link previews all come from it.
   site: "https://YOURDOMAIN.com",
   output: "static",
   vite: {

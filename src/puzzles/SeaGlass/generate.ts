@@ -26,6 +26,14 @@ const INSIDE_BLACK: Record<SeaGlassDifficulty, { min: number; max: number }> = {
   hard: { min: 5, max: 8 },
 };
 
+/**
+ * Share of boards with black inside that may have an all-black tile. Left alone the search makes
+ * one nearly every day (a corner tile only needs its 2 inside edges black), so most boards still rule
+ * it out. Boards that allow one pass the one-solution check more often, so 1 in 6 works out to about
+ * a third of Hard days.
+ */
+const ALL_BLACK_CHANCE = 1 / 6;
+
 // About 40% of attempts succeed on Easy and 15% on Hard, so this is effectively never reached
 const MAX_ATTEMPTS = 150;
 const NUDGES = 20000;
@@ -99,8 +107,9 @@ export function generateSeaGlass(random: () => number, difficulty: SeaGlassDiffi
  * same and every color is one patch. Returns the tiles, or null if it got stuck.
  *
  * For Hard, a black patch of the right size is grown first to start from. The search can then move
- * it like any color, as long as it stays one piece within the size range and never makes an
- * all-black tile. (Holding it still often walls a color off, or leaves two identical black tiles.)
+ * it like any color, as long as it stays one piece within the size range. Some boards (see
+ * ALL_BLACK_CHANCE) may also end up with an all-black tile; the rest never make one.
+ * (Holding the black still often walls a color off, or leaves two identical black tiles.)
  *
  * (Growing each color out as one solid blob instead makes lots of identical one-color tiles.)
  */
@@ -117,7 +126,8 @@ function randomBoard(random: () => number, blackRange: { min: number; max: numbe
     }
   }
 
-  const board = trackProblems(colors, blackRange);
+  const allBlackOk = blackCount > 0 && random() < ALL_BLACK_CHANCE;
+  const board = trackProblems(colors, blackRange, allBlackOk);
 
   for (let step = 0; step < NUDGES && board.problems() > 0; step++) {
     const edge = Math.floor(random() * edgeCount);
@@ -139,13 +149,13 @@ function toTiles(colors: number[]) {
 
 /**
  * Keeps count of how far a board is from done while the search recolors it one edge at a time:
- * duplicate tiles, all-black tiles, extra patches (or a missing patch) per color, extra black
- * patches, and how far the amount of black is outside its range.
+ * duplicate tiles, all-black tiles (unless `allBlackOk`), extra patches (or a missing patch) per
+ * color, extra black patches, and how far the amount of black is outside its range.
  *
  * Recoloring one edge only changes the two tiles on it and the patches of its old and new color,
  * so only those are recounted. (Recounting the whole board every step made Hard take seconds.)
  */
-function trackProblems(colors: number[], blackRange: { min: number; max: number }) {
+function trackProblems(colors: number[], blackRange: { min: number; max: number }, allBlackOk: boolean) {
   // Each tile as a number: its 4 sides in base 5 (a paint each, black on the outside border)
   const tileCode = (tile: number) =>
     tileEdges[tile].reduce((code, e) => code * PAINTS.length + (e < 0 ? BLACK : colors[e]), 0);
@@ -154,17 +164,14 @@ function trackProblems(colors: number[], blackRange: { min: number; max: number 
   const tiles = tileEdges.map((_, i) => tileCode(i));
   const copies = new Uint8Array(PAINTS.length ** 4); // how many tiles have each code
   let distinctTiles = 0;
-  let allBlackTiles = 0;
   let blackCount = colors.filter((c) => c === BLACK).length;
 
   function addTile(tile: number) {
     tiles[tile] = tileCode(tile);
     if (copies[tiles[tile]]++ === 0) distinctTiles++;
-    if (tiles[tile] === ALL_BLACK) allBlackTiles++;
   }
   function removeTile(tile: number) {
     if (--copies[tiles[tile]] === 0) distinctTiles--;
-    if (tiles[tile] === ALL_BLACK) allBlackTiles--;
   }
   tiles.forEach((_, i) => addTile(i));
 
@@ -196,7 +203,7 @@ function trackProblems(colors: number[], blackRange: { min: number; max: number 
 
   return {
     problems() {
-      let problems = tiles.length - distinctTiles + allBlackTiles;
+      let problems = tiles.length - distinctTiles + (allBlackOk ? 0 : copies[ALL_BLACK]);
       problems += Math.max(0, blackRange.min - blackCount, blackCount - blackRange.max);
       for (let paint = 0; paint < PAINTS.length; paint++) {
         // No black at all is fine on Easy (and on Hard the range above already counts it)

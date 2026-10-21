@@ -22,7 +22,6 @@ const { compact = false } = Astro.props;
       id="theme-toggle"
       type="button"
       aria-label="Switch to dark mode"
-      aria-pressed="false"
       class="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-full text-muted transition-colors duration-150 ease-smooth hover:bg-ink/5 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 dark:hover:bg-ink/10"
     >
       <!-- Dark Mode Icon: Lighthouse OFF (Unlit) -->
@@ -91,7 +90,6 @@ const { compact = false } = Astro.props;
     const isDark = document.documentElement.classList.contains('dark')
     unlitIcon?.classList.toggle('hidden', isDark)
     litIcon?.classList.toggle('hidden', !isDark)
-    toggleBtn?.setAttribute('aria-pressed', String(isDark))
     toggleBtn?.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode')
   }
   syncThemeUI()

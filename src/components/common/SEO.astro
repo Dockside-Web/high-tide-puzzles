@@ -2,38 +2,57 @@
 interface Props {
   title?: string;
   description: string;
+  /** Keep the page out of search results (404, unfinished pages) */
+  noindex?: boolean;
 }
 
-const { title, description } = Astro.props;
+const { title, description, noindex = false } = Astro.props;
 
-//UPDATE THESE FOR EVERY NEW CLIENT
 const brandName = "High Tide Puzzles";
 const homepageTagline = "A New Challenge Every Day";
-const socialImageURL = new URL("/og-main.jpg", Astro.site).href;
+// 1200x630, made from scripts/social-image.html (see the comment there)
+const socialImageURL = new URL("/og-main.png", Astro.site).href;
+const socialImageAlt = "High Tide Puzzles: free daily puzzles";
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site).href;
+const isHome = Astro.url.pathname === "/";
 
-// If a title exists (About, Gallery, etc.), show "Page | Brand"
+// If a title exists (a puzzle, Privacy Policy, etc.), show "Page | Brand"
 // If no title exists (Home), show "Brand | Tagline"
 const siteTitle = title
   ? `${title} | ${brandName}`
   : `${brandName} | ${homepageTagline}`;
+
+// Tells Google the site's name, so results show "High Tide Puzzles" rather than the domain
+const websiteData = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: brandName,
+  url: new URL("/", Astro.site).href,
+};
 ---
 
 <!-- Primary -->
 <title>{siteTitle}</title>
 <meta name="description" content={description} />
-<link rel="canonical" href={canonicalURL} />
+{noindex ? <meta name="robots" content="noindex" /> : <link rel="canonical" href={canonicalURL} />}
 
 <!-- Open Graph -->
 <meta property="og:type" content="website" />
+<meta property="og:site_name" content={brandName} />
 <meta property="og:url" content={canonicalURL} />
 <meta property="og:title" content={siteTitle} />
 <meta property="og:description" content={description} />
 <meta property="og:image" content={socialImageURL} />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content={socialImageAlt} />
 
 <!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content={siteTitle} />
 <meta name="twitter:description" content={description} />
 <meta name="twitter:image" content={socialImageURL} />
+<meta name="twitter:image:alt" content={socialImageAlt} />
+
+{isHome && <script is:inline type="application/ld+json" set:html={JSON.stringify(websiteData)} />}

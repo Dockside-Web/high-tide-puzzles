@@ -3,8 +3,12 @@ import Layout from "../layouts/Layout.astro";
 import DailyPuzzles from "../components/home/DailyPuzzles.astro";
 import FAQ from "../components/home/FAQ.astro";
 import Contact from "../components/home/Contact.astro";
+import { PUZZLE_LIST } from "../puzzles";
 
-const metaDescription="Free daily puzzles — a new challenge every day.";
+// Names the puzzles, since that's what people search for ("Bridges, Sea Glass and Word Chain")
+const names = PUZZLE_LIST.map((p) => p.name);
+const nameList = `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+const metaDescription = `Free daily puzzles: ${nameList}. A new challenge every day, no sign-up needed.`;
 ---
 
 <Layout description={metaDescription} footer>

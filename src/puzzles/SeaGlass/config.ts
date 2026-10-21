@@ -17,7 +17,6 @@ const config: PuzzleConfig = {
     { id: "easy", label: "Easy" },
     { id: "hard", label: "Hard" }
   ],
-  settings: false,
   toolbar: {
     reveal: true,
     reset: true

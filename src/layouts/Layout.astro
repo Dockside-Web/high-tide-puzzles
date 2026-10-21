@@ -11,19 +11,32 @@ interface Props {
   compact?: boolean;
   /** Show the site footer (only the homepage has one) */
   footer?: boolean;
+  /** Keep the page out of search results */
+  noindex?: boolean;
 }
 
-const { title, description, compact = false, footer = false } = Astro.props;
+const { title, description, compact = false, footer = false, noindex = false } = Astro.props;
 ---
 
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" href="/favicon.ico" />
-    <SEO title={title} description={description} />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- Browser bar color: the page background in each theme -->
+    <meta name="theme-color" content="#faf7f0" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0a1626" media="(prefers-color-scheme: dark)" />
+    <!-- Fonts linked here rather than @imported in CSS, so the browser starts fetching them right away -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Fredoka:wght@600;700&display=swap"
+    />
+    <SEO title={title} description={description} noindex={noindex} />
 
     <script is:inline>
       ;(function () {
@@ -41,8 +54,15 @@ const { title, description, compact = false, footer = false } = Astro.props;
     </script>
   </head>
   <body class="flex min-h-dvh flex-col justify-between bg-canvas text-ink">
+    <!-- Lets keyboard users jump past the header; hidden until focused -->
+    <a
+      href="#main"
+      class="sr-only z-50 rounded-full bg-surface px-4 py-2 text-sm font-semibold text-ink shadow-md ring-2 ring-accent focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+    >
+      Skip to content
+    </a>
     <Header compact={compact} />
-    <main class="flex-1">
+    <main id="main" tabindex="-1" class="flex-1 outline-none">
       <slot />
     </main>
     {footer && <Footer />}

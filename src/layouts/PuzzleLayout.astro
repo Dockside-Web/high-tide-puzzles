@@ -24,17 +24,19 @@ const {
   helpExamples: HelpExamples,
   difficulties = [],
   timer = true,
-  settings = true,
   toolbar,
 } = puzzle;
 
 const hasControls = difficulties.length > 0 || timer;
+
+// What search results show for this page: the puzzle's tagline, then what's on offer
+const description = `${puzzle.tagline} A new ${name} puzzle every day, free to play with no sign-up.`;
 ---
 
-<Layout title={name} description={`Play today's ${name} puzzle.`} compact>
+<Layout title={`${name} Daily Puzzle`} description={description} compact>
   <div class="flex w-full flex-col px-3 pt-5 pb-4 sm:px-6 sm:pt-7" style={puzzleColorStyle(color)}>
     <div class="mx-auto w-full max-w-3xl">
-      <PuzzleHeader name={name} icon={icon} showSettings={settings} />
+      <PuzzleHeader name={name} icon={icon} />
 
       {hasControls && (
         <div class="mt-3">
