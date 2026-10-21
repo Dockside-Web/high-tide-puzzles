@@ -38,20 +38,20 @@ const description = `${puzzle.tagline} A new ${name} puzzle every day, free to p
       <PuzzleHeader name={name} icon={icon} />
 
       {hasControls && (
-        <div class="mt-3">
+        <div class="mt-3" data-float>
           <PuzzleControls difficulties={difficulties} showTimer={timer} />
         </div>
       )}
     </div>
 
     <!-- Board (allowed to be wider than the header for wide puzzles) -->
-    <div class="relative mx-auto mt-6 flex w-full max-w-6xl flex-col items-center sm:mt-9" data-puzzle-board>
+    <div class="relative mx-auto mt-6 flex w-full max-w-6xl flex-col items-center sm:mt-9" data-puzzle-board data-float>
       <slot />
       {timer && <PauseOverlay />}
     </div>
 
     {toolbar && (
-      <div class="mt-6 sm:mt-8">
+      <div class="mt-6 sm:mt-8" data-float>
         <Toolbar config={toolbar} />
       </div>
     )}
@@ -60,6 +60,6 @@ const description = `${puzzle.tagline} A new ${name} puzzle every day, free to p
       {HelpExamples && <HelpExamples />}
     </HelpModal>
     <!-- Every puzzle finishes the same way: fire "puzzle:solved" and this takes it from there -->
-    <SolvedCelebration name={name} icon={icon} />
+    <SolvedCelebration slug={puzzle.slug} name={name} icon={icon} difficulties={difficulties} />
   </div>
 </Layout>

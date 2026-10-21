@@ -253,12 +253,6 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
     box-shadow: none;
   }
 
-  /* While dragging onto a placed tile, that tile slides to where the dragged one came from */
-  .sea-glass__tile.is-swap-preview {
-    z-index: 1;
-    transition: transform 0.12s ease-out;
-  }
-
   /* Dropped: a small settle into place */
   .sea-glass__tile.is-settling {
     animation: sea-glass-settle 0.16s ease-out;
@@ -275,8 +269,7 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
       animation: none;
     }
 
-    :global(.sea-glass__ghost.is-snapped),
-    .sea-glass__tile.is-swap-preview {
+    :global(.sea-glass__ghost.is-snapped) {
       transition: none !important;
     }
   }
@@ -528,12 +521,8 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
       let dx = 0;
       let dy = 0;
       let overSlot: HTMLElement | null = null;
-      let swapping: HTMLElement | null = null; // the placed tile shown sliding over to make room
 
-      /**
-       * The space under a point, by where the spaces are rather than what's drawn there: a tile
-       * sliding over for a swap preview sits on top of a different space than the one it's in.
-       */
+      /** The space under a point, by where the spaces are rather than what's drawn on top of them. */
       function slotUnder(x: number, y: number) {
         return (
           allSlots.find((slot) => {
@@ -543,7 +532,7 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
         );
       }
 
-      /** Over a space: snap the dragged copy into it, and preview the swap if a tile is there. */
+      /** Over a space: snap the dragged copy into it (on top of any tile there; they swap on drop). */
       function setOver(slot: HTMLElement | null) {
         if (slot === overSlot) return;
         overSlot = slot;
@@ -552,37 +541,12 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
           const rect = slot.getBoundingClientRect();
           ghost.style.transform = `translate3d(${rect.left}px, ${rect.top}px, 0)`;
         }
-
-        const other = slot ? tileIn(slot) : null;
-        if (other === swapping) return;
-        clearSwap(true);
-        if (other && other !== tile) {
-          const from = (tile.parentElement as HTMLElement).getBoundingClientRect();
-          const to = slot!.getBoundingClientRect();
-          swapping = other;
-          other.classList.add("is-swap-preview");
-          other.style.transform = `translate(${from.left - to.left}px, ${from.top - to.top}px)`;
-        }
       }
 
-      /** Ends the swap preview, sliding the tile back home (or straight there, when it's about to move anyway). */
-      function clearSwap(slide: boolean) {
-        if (!swapping) return;
-        if (!slide) swapping.classList.remove("is-swap-preview");
-        swapping.style.transform = "";
-        if (slide) {
-          // A timer rather than transitionend, which never fires with reduced motion
-          const done = swapping;
-          setTimeout(() => done !== swapping && done.classList.remove("is-swap-preview"), 150);
-        }
-        swapping = null;
-      }
-
-      function cleanup(slideBack: boolean) {
+      function cleanup() {
         ghost?.remove();
         ghost = null;
         tile.classList.remove("is-dragging");
-        clearSwap(slideBack);
         overSlot = null;
       }
 
@@ -647,7 +611,7 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
 
         const target = slotUnder(e.clientX, e.clientY);
         const other = target ? tileIn(target) : null;
-        cleanup(!target);
+        cleanup();
         moved = false;
         dragged = true;
         if (!target) return;
@@ -659,7 +623,7 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
       tile.addEventListener("pointercancel", () => {
         pointerId = null;
         moved = false;
-        cleanup(true);
+        cleanup();
       });
     }
 

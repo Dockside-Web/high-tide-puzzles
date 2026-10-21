@@ -1,173 +1,167 @@
 ---
 import BuoyIcon from "./buoy.svg";
 import type { PuzzleConfig } from "../types";
+import { SIZE } from "./generate";
+
 interface Props {
   puzzle: PuzzleConfig;
   date?: string;
 }
 
-// Static sample board for frontend development (no daily generation yet)
-const regionMap = [
-  [9, 9, 3, 3, 3, 6, 6, 6, 6],
-  [9, 9, 3, 3, 3, 6, 6, 6, 6],
-  [9, 3, 3, 3, 3, 2, 2, 2, 2],
-  [9, 9, 4, 3, 3, 3, 2, 2, 2],
-  [9, 9, 4, 1, 3, 1, 1, 8, 2],
-  [9, 9, 4, 1, 1, 1, 8, 8, 8],
-  [9, 4, 4, 4, 1, 1, 8, 8, 8],
-  [9, 4, 4, 4, 5, 5, 5, 10, 10],
-  [9, 7, 7, 7, 7, 7, 10, 10, 10],
-];
-
-// "B" marks a buoy in the solution
-const solution = [
-  "B...B...B",
-  ".........",
-  "..B...B.B",
-  ".........",
-  "..B..B...",
-  ".......B.",
-  "..B......",
-  "......B..",
-  "B..B....B",
-].map((row) => row.split("").map((ch) => ch === "B"));
-
-const rowTargets = solution.map((row) => row.filter(Boolean).length);
-const colTargets = Array.from({ length: 9 }, (_, c) => solution.filter((row) => row[c]).length);
-
-const regionBuoyCounts: Record<number, number> = {};
-solution.forEach((row, r) =>
-  row.forEach((hasBuoy, c) => {
-    if (hasBuoy) regionBuoyCounts[regionMap[r][c]] = (regionBuoyCounts[regionMap[r][c]] || 0) + 1;
-  })
-);
-
-// Clue count is shown in the first cell (reading order) of each region
-const seenRegions = new Set<number>();
-const gridData = regionMap.map((row) =>
-  row.map((region) => {
-    const isFirst = !seenRegions.has(region);
-    seenRegions.add(region);
-    return { region, count: isFirst ? regionBuoyCounts[region] || 0 : null };
-  })
-);
-
-function getRegionEdges() {
-  const horizontalEdges: { r: number; c: number }[] = [];
-  const verticalEdges: { r: number; c: number }[] = [];
-
-  for (let r = 0; r < 9; r++) {
-    for (let c = 0; c < 9; c++) {
-      const current = gridData[r][c].region;
-      if (r === 0 || gridData[r - 1][c].region !== current) horizontalEdges.push({ r, c });
-      if (r === 8) horizontalEdges.push({ r: 9, c });
-      if (c === 0 || gridData[r][c - 1].region !== current) verticalEdges.push({ r, c });
-      if (c === 8) verticalEdges.push({ r, c: 9 });
-    }
-  }
-
-  return { horizontalEdges, verticalEdges };
-}
-
-const { horizontalEdges, verticalEdges } = getRegionEdges();
+const { puzzle } = Astro.props;
+const indexes = Array.from({ length: SIZE }, (_, i) => i);
 ---
 
-<!-- --cell sizes everything: shrinks to fit the screen width and height so the toolbar stays visible -->
+<!--
+  The day's regions and clues are made in the browser from the player's local date (see generate.ts).
+  Tap a cell to cycle it: water, buoy, empty. Drag to paint the same change across cells.
+  Keyboard: arrow keys move between cells, Space or Enter cycles, Delete clears.
+  Solved when the buoys are exactly the day's layout (the clues allow only one). On Hard some row and
+  column numbers are hidden and left blank.
+  --cell sizes everything: shrinks to fit the screen width and height so the toolbar stays visible.
+-->
 <div
-  class="grid max-w-full grid-cols-[calc(var(--cell)*0.6)_auto] gap-1 select-none sm:gap-1.5"
+  class="buoy grid max-w-full grid-cols-[calc(var(--cell)*0.6)_auto] gap-1 select-none sm:gap-1.5"
   style="--cell: clamp(1.6rem, min(8.5vw, calc((100dvh - 17.5rem) / 10)), 3.1rem)"
+  data-buoy-root
+  data-slug={puzzle.slug}
+  data-status="loading"
 >
-  <!-- Top Column Clues (corner spacer first) -->
+  <!-- Column clues (corner spacer first) -->
   <div></div>
   <div class="grid grid-cols-9 px-0.5">
-    {colTargets.map((num) => (
-      <div class="flex w-(--cell) items-center justify-center text-[calc(var(--cell)*0.36)] font-bold text-ink">
-        {num}
+    {indexes.map((c) => (
+      <div class="buoy__clue flex w-(--cell) items-center justify-center text-[calc(var(--cell)*0.36)] font-bold" data-col-clue>
+        <span class="sr-only">Column {c + 1}:</span><span data-clue-number></span>
       </div>
     ))}
   </div>
 
-  <!-- Left Row Clues -->
   <div class="grid grid-rows-9 py-0.5">
-    {rowTargets.map((num) => (
-      <div class="flex h-(--cell) items-center justify-center text-[calc(var(--cell)*0.36)] font-bold text-ink">
-        {num}
+    {indexes.map((r) => (
+      <div class="buoy__clue flex h-(--cell) items-center justify-center text-[calc(var(--cell)*0.36)] font-bold" data-row-clue>
+        <span class="sr-only">Row {r + 1}:</span><span data-clue-number></span>
       </div>
     ))}
   </div>
 
-  <div>
-    <!-- Region borders are a solid color clearly darker than shaded cells, so shading visibly stops at them -->
-    <div style="--region-border: color-mix(in srgb, rgb(var(--ink)) 45%, rgb(var(--surface)))" class="relative overflow-hidden rounded-xl border-2 border-(--region-border) bg-surface shadow-lg">
-      <!-- SVG Layer for Connected Region Lines -->
-      <svg
-        class="pointer-events-none absolute inset-0 z-10 h-full w-full"
-        viewBox="0 0 900 900"
-        preserveAspectRatio="none"
-      >
-        {horizontalEdges.map(({ r, c }) => (
-          <line
-            x1={c * 100}
-            y1={r * 100}
-            x2={(c + 1) * 100}
-            y2={r * 100}
-            stroke="var(--region-border)"
-            stroke-width="8"
-            stroke-linecap="square"
-          />
-        ))}
+  <!-- Region borders are a solid color clearly darker than shaded cells, so shading visibly stops at them -->
+  <div
+    style="--region-border: color-mix(in srgb, rgb(var(--ink)) 45%, rgb(var(--surface)))"
+    class="relative overflow-hidden rounded-xl border-2 border-(--region-border) bg-surface shadow-lg"
+  >
+    <!-- Shown over the board while the day's puzzle is being made -->
+    <p class="buoy__loading" aria-live="polite"><span>Shuffling today's board…</span></p>
 
-        {verticalEdges.map(({ r, c }) => (
-          <line
-            x1={c * 100}
-            y1={r * 100}
-            x2={c * 100}
-            y2={(r + 1) * 100}
-            stroke="var(--region-border)"
-            stroke-width="8"
-            stroke-linecap="square"
-          />
-        ))}
-      </svg>
+    <svg
+      class="pointer-events-none absolute inset-0 z-10 h-full w-full"
+      viewBox={`0 0 ${SIZE * 100} ${SIZE * 100}`}
+      preserveAspectRatio="none"
+      aria-hidden="true"
+      data-borders
+    ></svg>
 
-      <div class="grid grid-cols-9">
-        {
-          gridData.map((row, r) =>
-            row.map((cell, c) => (
-              <button
-                type="button"
-                data-cell
-                data-state="0"
-                data-row={r}
-                data-col={c}
-                class="puzzle-cell relative flex size-(--cell) items-center justify-center transition-colors cursor-pointer bg-surface border border-line/40 touch-none"
-              >
-                <!-- Corner Region Clue Number -->
-                {cell.count !== null && (
-                  <span class="absolute top-[8%] left-[8%] z-20 text-[calc(var(--cell)*0.24)] font-bold leading-none text-ink/70 pointer-events-none">
-                    {cell.count}
-                  </span>
-                )}
-
-                <!-- State 0 Dot Indicator -->
-                <span data-dot class="size-[calc(var(--cell)*0.12)] rounded-full bg-muted/40 pointer-events-none" />
-
-                <!-- State 2 Buoy Icon -->
-                <BuoyIcon
-                  data-buoy
-                  aria-label="Buoy"
-                  class="hidden z-20 size-[calc(var(--cell)*0.62)] pointer-events-none"
-                />
-              </button>
-            ))
-          )
-        }
-      </div>
+    <div class="grid grid-cols-9" role="group" aria-label="Buoy board">
+      {indexes.map((r) =>
+        indexes.map((c) => (
+          <button
+            type="button"
+            data-cell
+            tabindex={r === 0 && c === 0 ? 0 : -1}
+            class="buoy__cell relative flex size-(--cell) cursor-pointer touch-none items-center justify-center border border-line/40 bg-surface transition-colors"
+          >
+            <span
+              class="buoy__region-clue pointer-events-none absolute top-[8%] left-[8%] z-20 text-[calc(var(--cell)*0.24)] leading-none font-bold"
+              aria-hidden="true"
+              data-region-clue
+              hidden
+            ></span>
+            <span data-dot class="pointer-events-none size-[calc(var(--cell)*0.12)] rounded-full bg-muted/40" aria-hidden="true"></span>
+            <BuoyIcon data-buoy class="pointer-events-none z-20 hidden size-[calc(var(--cell)*0.62)]" aria-hidden="true" />
+          </button>
+        ))
+      )}
     </div>
   </div>
 </div>
 
 <style>
+  .buoy__clue,
+  .buoy__region-clue {
+    color: rgb(var(--ink));
+    transition: color 0.15s ease, opacity 0.15s ease;
+  }
+
+  .buoy__region-clue {
+    color: rgb(var(--ink) / 0.7);
+  }
+
+  /* A row, column or region with exactly its number of buoys fades back; one with too many turns coral */
+  .buoy__clue.is-done,
+  .buoy__region-clue.is-done {
+    opacity: 0.35;
+  }
+
+  .buoy__clue.is-over,
+  .buoy__region-clue.is-over {
+    color: rgb(var(--coral-strong));
+  }
+
+  .buoy__cell[data-state="1"],
+  .buoy__cell[data-state="2"] {
+    background: rgb(var(--ocean) / 0.2);
+  }
+
+  .buoy__cell:focus-visible {
+    z-index: 30;
+    outline: 3px solid rgb(var(--puzzle-strong));
+    outline-offset: -3px;
+  }
+
+  .buoy__loading {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgb(var(--surface));
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: rgb(var(--muted));
+  }
+
+  /* Only the words pulse; the cover stays solid so the last board never shows through */
+  .buoy__loading span {
+    animation: buoy-pulse 1.2s ease-in-out infinite;
+  }
+
+  .buoy[data-status="loading"] .buoy__loading {
+    display: flex;
+  }
+
+  /* No clues from the last board while the next one is made */
+  .buoy[data-status="loading"] .buoy__clue {
+    visibility: hidden;
+  }
+
+  @keyframes buoy-pulse {
+    50% { opacity: 0.45; }
+  }
+
+  .buoy.is-locked .buoy__cell {
+    cursor: default;
+  }
+
+  /* A cell changed by Hint pulses in the puzzle's color */
+  .buoy__cell.is-hinted {
+    animation: buoy-hint 0.4s ease-in-out 2;
+  }
+
+  @keyframes buoy-hint {
+    50% { background: rgb(var(--puzzle) / 0.45); }
+  }
+
   @keyframes buoyPop {
     0% {
       transform: scale(0.3);
@@ -187,147 +181,325 @@ const { horizontalEdges, verticalEdges } = getRegionEdges();
   :global(.buoy-animate) {
     animation: buoyPop 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    .buoy__loading span,
+    .buoy__cell.is-hinted,
+    :global(.buoy-animate) {
+      animation: none;
+    }
+  }
 </style>
 
 <script>
-  const cells = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-cell]'));
+  import { dailyRandom, forgetOldProgress, loadProgress, localDateKey, saveProgress } from "../daily";
+  import { SIZE, generateBuoy, type BuoyDifficulty, type BuoyPuzzle } from "./generate";
 
-  const UNSELECTED_BG = 'bg-surface';
-  const FILLED_BG = 'bg-ocean/20';
+  const EMPTY = 0;
+  const WATER = 1;
+  const BUOY = 2;
+  const STATE_NAMES = ["empty", "water", "buoy"];
 
-  type BoardState = number[];
-  let history: BoardState[] = [new Array(81).fill(0)];
-  let historyIndex = 0;
+  type Status = "loading" | "playing" | "solved" | "revealed";
 
-  function renderBoard(boardState: BoardState, animateCellIndex: number | null = null) {
-    cells.forEach((cell, index) => {
-      const state = boardState[index];
-      const dot = cell.querySelector<HTMLElement>('[data-dot]');
-      const buoy = cell.querySelector<HTMLElement>('[data-buoy]');
+  /** What's saved for one day at one difficulty */
+  interface SavedGame {
+    cells: number[];
+    seconds: number;
+    status: "playing" | "solved" | "revealed";
+  }
 
-      cell.dataset.state = state.toString();
+  const root = document.querySelector<HTMLElement>("[data-buoy-root]")!;
+  const slug = root.dataset.slug!;
+  const cellEls = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-cell]"));
+  const rowClues = Array.from(root.querySelectorAll<HTMLElement>("[data-row-clue]"));
+  const colClues = Array.from(root.querySelectorAll<HTMLElement>("[data-col-clue]"));
+  const bordersSvg = root.querySelector<SVGSVGElement>("[data-borders]")!;
 
-      if (state === 0) {
-        cell.classList.remove(FILLED_BG);
-        cell.classList.add(UNSELECTED_BG);
-        dot?.classList.remove('hidden');
-        buoy?.classList.add('hidden');
-        buoy?.classList.remove('buoy-animate');
-      } else if (state === 1) {
-        cell.classList.remove(UNSELECTED_BG);
-        cell.classList.add(FILLED_BG);
-        dot?.classList.add('hidden');
-        buoy?.classList.add('hidden');
-        buoy?.classList.remove('buoy-animate');
-      } else if (state === 2) {
-        cell.classList.remove(UNSELECTED_BG);
-        cell.classList.add(FILLED_BG);
-        dot?.classList.add('hidden');
-        
-        if (buoy) {
-          buoy.classList.remove('hidden');
-          if (animateCellIndex === index) {
-            buoy.classList.remove('buoy-animate');
-            void buoy.offsetWidth;
-            buoy.classList.add('buoy-animate');
-          }
-        }
+  let dateKey = localDateKey();
+  let difficulty: BuoyDifficulty = "easy"; // the first difficulty tab starts selected
+  let puzzle: BuoyPuzzle;
+  /** Region number -> the cell showing its clue (the region's first cell in reading order) */
+  let regionClueCell = new Map<number, number>();
+  let board: number[] = new Array(SIZE * SIZE).fill(EMPTY);
+  let undoStack: number[][] = [];
+  let status: Status = "playing";
+  let seconds = 0;
+  let focusIndex = 0;
+
+  const rowOf = (cell: number) => Math.floor(cell / SIZE);
+  const colOf = (cell: number) => cell % SIZE;
+  const plural = (n: number) => `${n} buoy${n === 1 ? "" : "s"}`;
+
+  function save() {
+    if (status === "loading") return;
+    saveProgress(slug, difficulty, dateKey, { cells: board, seconds, status } satisfies SavedGame);
+  }
+
+  function setStatus(next: Status) {
+    status = next;
+    root.dataset.status = next;
+    root.classList.toggle("is-locked", next !== "playing");
+  }
+
+  /** Resolves once the browser has drawn the current state (so "Shuffling…" shows before the heavy work). */
+  const nextPaint = () => new Promise<void>((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
+  let loadId = 0;
+
+  // ---------- Drawing ----------
+  /** Region borders and the clue numbers that don't change while playing. */
+  function drawPuzzle() {
+    const lines: string[] = [];
+    const line = (x1: number, y1: number, x2: number, y2: number) =>
+      lines.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--region-border)" stroke-width="8" stroke-linecap="square" />`);
+    puzzle.regions.forEach((g, cell) => {
+      const r = rowOf(cell);
+      const c = colOf(cell);
+      if (r > 0 && puzzle.regions[cell - SIZE] !== g) line(c * 100, r * 100, (c + 1) * 100, r * 100);
+      if (c > 0 && puzzle.regions[cell - 1] !== g) line(c * 100, r * 100, c * 100, (r + 1) * 100);
+    });
+    bordersSvg.innerHTML = lines.join("");
+
+    regionClueCell = new Map();
+    puzzle.regions.forEach((g, cell) => regionClueCell.has(g) || regionClueCell.set(g, cell));
+    cellEls.forEach((el, cell) => {
+      const clue = el.querySelector<HTMLElement>("[data-region-clue]")!;
+      const g = puzzle.regions[cell];
+      clue.hidden = regionClueCell.get(g) !== cell;
+      clue.textContent = String(puzzle.regionCounts[g]);
+    });
+    const showClue = (el: HTMLElement, count: number | null) => {
+      el.querySelector("[data-clue-number]")!.innerHTML = count === null ? '<span class="sr-only">hidden</span>' : String(count);
+    };
+    rowClues.forEach((el, r) => showClue(el, puzzle.rowCounts[r]));
+    colClues.forEach((el, c) => showClue(el, puzzle.colCounts[c]));
+  }
+
+  /** Cells, their labels, and how each clue is doing. `pop` animates a newly placed buoy. */
+  function render(pop: number | null = null) {
+    const rows = new Array(SIZE).fill(0);
+    const cols = new Array(SIZE).fill(0);
+    const regions = new Array(puzzle.regionCounts.length).fill(0);
+    board.forEach((state, cell) => {
+      if (state !== BUOY) return;
+      rows[rowOf(cell)]++;
+      cols[colOf(cell)]++;
+      regions[puzzle.regions[cell]]++;
+    });
+
+    // A hidden number (null) is never marked done or over
+    const mark = (el: Element, have: number, want: number | null) => {
+      el.classList.toggle("is-done", have === want);
+      el.classList.toggle("is-over", want !== null && have > want);
+    };
+    rowClues.forEach((el, r) => mark(el, rows[r], puzzle.rowCounts[r]));
+    colClues.forEach((el, c) => mark(el, cols[c], puzzle.colCounts[c]));
+
+    cellEls.forEach((el, cell) => {
+      const state = board[cell];
+      const g = puzzle.regions[cell];
+      el.dataset.state = String(state);
+      el.querySelector("[data-dot]")!.classList.toggle("hidden", state !== EMPTY);
+      const buoy = el.querySelector("[data-buoy]")!;
+      buoy.classList.toggle("hidden", state !== BUOY);
+      buoy.classList.remove("buoy-animate");
+      if (cell === pop) {
+        void (buoy as HTMLElement).getBoundingClientRect(); // restart the pop if it already ran
+        buoy.classList.add("buoy-animate");
       }
+
+      let label = `Row ${rowOf(cell) + 1}, column ${colOf(cell) + 1}: ${STATE_NAMES[state]}`;
+      if (regionClueCell.get(g) === cell) {
+        mark(el.querySelector("[data-region-clue]")!, regions[g], puzzle.regionCounts[g]);
+        label += `. Its region holds ${plural(puzzle.regionCounts[g])}`;
+      }
+      el.setAttribute("aria-label", label);
     });
   }
 
-  function getCurrentBoardState(): BoardState {
-    return cells.map((cell) => parseInt(cell.dataset.state || '0', 10));
+  // ---------- Changing cells ----------
+  /** After any change: redraw, catch the moment it's solved, and save. */
+  function changed(pop: number | null = null) {
+    render(pop);
+    const solved = board.every((state, cell) => (state === BUOY) === puzzle.solution[cell]);
+    if (solved && status === "playing") {
+      setStatus("solved");
+      window.dispatchEvent(new Event("puzzle:solved"));
+    }
+    save();
   }
 
-  function applyCellChange(cellIndex: number, targetState: number) {
-    const currentState = getCurrentBoardState();
-    if (currentState[cellIndex] === targetState) return;
-
-    currentState[cellIndex] = targetState;
-
-    history = history.slice(0, historyIndex + 1);
-    history.push([...currentState]);
-    historyIndex++;
-
-    renderBoard(currentState, targetState === 2 ? cellIndex : null);
+  /** One undoable change to a single cell (keyboard and Hint). */
+  function setCell(cell: number, state: number) {
+    if (status !== "playing" || board[cell] === state) return;
+    undoStack.push([...board]);
+    board[cell] = state;
+    changed(state === BUOY ? cell : null);
   }
 
-  let isMouseDown = false;
-  let dragTargetState: number | null = null;
+  // Tap or drag: the first cell decides the change (its next state), and every cell the pointer
+  // crosses gets the same one. The whole stroke is one step for Undo.
+  let stroke: { state: number; before: number[] } | null = null;
 
-  function handlePointerUp() {
-    isMouseDown = false;
-    dragTargetState = null;
+  function paint(cell: number) {
+    if (!stroke || board[cell] === stroke.state) return;
+    board[cell] = stroke.state;
+    render(stroke.state === BUOY ? cell : null);
   }
 
-  window.addEventListener('mouseup', handlePointerUp);
-  window.addEventListener('touchend', handlePointerUp);
+  function endStroke() {
+    if (!stroke) return;
+    if (stroke.before.some((state, cell) => state !== board[cell])) {
+      undoStack.push(stroke.before);
+      changed();
+    }
+    stroke = null;
+  }
 
-  cells.forEach((cell, index) => {
-    cell.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      isMouseDown = true;
-      const currentState = parseInt(cell.dataset.state || '0', 10);
-      dragTargetState = (currentState + 1) % 3;
-
-      applyCellChange(index, dragTargetState);
-    }, { passive: false });
-
-    cell.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      isMouseDown = true;
-
-      const currentState = parseInt(cell.dataset.state || '0', 10);
-      dragTargetState = (currentState + 1) % 3;
-
-      applyCellChange(index, dragTargetState);
-    });
-
-    cell.addEventListener('mouseenter', () => {
-      if (isMouseDown && dragTargetState !== null) {
-        applyCellChange(index, dragTargetState);
-      }
+  cellEls.forEach((el, cell) => {
+    el.addEventListener("pointerdown", (e) => {
+      if (status !== "playing" || e.button !== 0) return;
+      e.preventDefault(); // no text selection or focus jump while dragging
+      setFocus(cell, false);
+      stroke = { state: (board[cell] + 1) % 3, before: [...board] };
+      paint(cell);
     });
   });
 
-  window.addEventListener('touchmove', (e) => {
-    if (!isMouseDown || dragTargetState === null) return;
-    const touch = e.touches[0];
-    const target = document.elementFromPoint(touch.clientX, touch.clientY);
-    const cell = target?.closest('[data-cell]') as HTMLButtonElement | null;
-    if (cell) {
-      const idx = cells.indexOf(cell);
-      if (idx !== -1) applyCellChange(idx, dragTargetState);
-    }
-  }, { passive: true });
-
-  // --- TOOLBAR EVENT LISTENERS ---
-
-  function handleUndo() {
-    if (historyIndex > 0) {
-      historyIndex--;
-      renderBoard(history[historyIndex]);
-    }
-  }
-
-  function handleReset() {
-    if (historyIndex !== 0 || history.length > 1) {
-      history = [new Array(81).fill(0)];
-      historyIndex = 0;
-      renderBoard(history[0]);
-    }
-  }
-
-  function handleHint() {
-    console.log("Hint requested");
-  }
-
-  window.addEventListener('puzzle:undo', handleUndo);
-  window.addEventListener('puzzle:reset', handleReset);
-  window.addEventListener('puzzle:hint', handleHint);
-
-  window.addEventListener('puzzle:difficulty-change', () => {
-    handleReset();
+  window.addEventListener("pointermove", (e) => {
+    if (!stroke) return;
+    const el = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLButtonElement>("[data-cell]");
+    const cell = el ? cellEls.indexOf(el) : -1;
+    if (cell !== -1) paint(cell);
   });
+  window.addEventListener("pointerup", endStroke);
+  window.addEventListener("pointercancel", endStroke);
+
+  // ---------- Keyboard ----------
+  /** Only one cell is in the tab order at a time; the arrow keys move it. */
+  function setFocus(cell: number, moveFocus: boolean) {
+    cellEls[focusIndex].tabIndex = -1;
+    focusIndex = cell;
+    cellEls[cell].tabIndex = 0;
+    if (moveFocus) cellEls[cell].focus();
+  }
+
+  root.addEventListener("keydown", (e) => {
+    const el = (e.target as Element).closest<HTMLButtonElement>("[data-cell]");
+    if (!el) return;
+    const cell = cellEls.indexOf(el);
+    const r = rowOf(cell);
+    const c = colOf(cell);
+    const moves: Record<string, number> = {
+      ArrowUp: r > 0 ? cell - SIZE : cell,
+      ArrowDown: r < SIZE - 1 ? cell + SIZE : cell,
+      ArrowLeft: c > 0 ? cell - 1 : cell,
+      ArrowRight: c < SIZE - 1 ? cell + 1 : cell,
+      Home: cell - c,
+      End: cell - c + SIZE - 1,
+    };
+
+    if (e.key in moves) setFocus(moves[e.key], true);
+    else if (e.key === " " || e.key === "Enter") setCell(cell, (board[cell] + 1) % 3);
+    else if (e.key === "Delete" || e.key === "Backspace") setCell(cell, EMPTY);
+    else return;
+    e.preventDefault();
+  });
+
+  // ---------- Toolbar ----------
+  window.addEventListener("puzzle:undo", () => {
+    if (status !== "playing" || !undoStack.length) return;
+    board = undoStack.pop()!;
+    changed();
+  });
+
+  window.addEventListener("puzzle:reset", () => {
+    if (status === "loading") return;
+    // Starting over after solving also restarts the stopped timer
+    if (status !== "playing") {
+      seconds = 0;
+      window.dispatchEvent(new Event("puzzle:timer-reset"));
+    }
+    setStatus("playing");
+    board = new Array(SIZE * SIZE).fill(EMPTY);
+    undoStack = [];
+    changed();
+  });
+
+  // Fixes the first wrong mark (a buoy that doesn't belong, or water over a buoy), otherwise places a missing buoy
+  window.addEventListener("puzzle:hint", () => {
+    if (status !== "playing") return;
+    let cell = board.findIndex((state, i) => state !== EMPTY && (state === BUOY) !== puzzle.solution[i]);
+    if (cell === -1) cell = board.findIndex((state, i) => state === EMPTY && puzzle.solution[i]);
+    if (cell === -1) return;
+    setCell(cell, puzzle.solution[cell] ? BUOY : WATER);
+    const el = cellEls[cell];
+    el.classList.remove("is-hinted");
+    void el.offsetWidth; // restart the pulse if it's still running
+    el.classList.add("is-hinted");
+    el.addEventListener("animationend", () => el.classList.remove("is-hinted"), { once: true });
+  });
+
+  // Every buoy in place and the rest marked as water, then the board locks (no celebration)
+  window.addEventListener("puzzle:reveal", () => {
+    if (status !== "playing") return;
+    setStatus("revealed");
+    board = puzzle.solution.map((buoy) => (buoy ? BUOY : WATER));
+    undoStack = [];
+    changed();
+    window.dispatchEvent(new Event("puzzle:revealed"));
+  });
+
+  // ---------- Loading a day ----------
+  /**
+   * Shows "Shuffling…", then makes the day's puzzle and lays out the saved board if there is one,
+   * otherwise an empty one.
+   */
+  async function load() {
+    const id = ++loadId;
+    setStatus("loading");
+    await nextPaint();
+    if (id !== loadId) return; // switched difficulty (or day) again in the meantime
+
+    puzzle = generateBuoy(dailyRandom(slug, difficulty, dateKey), difficulty);
+    drawPuzzle();
+    undoStack = [];
+
+    const saved = loadProgress<SavedGame>(slug, difficulty, dateKey);
+    if (saved?.cells?.length === SIZE * SIZE) {
+      board = saved.cells;
+      seconds = saved.seconds;
+      setStatus(saved.status);
+      window.dispatchEvent(
+        new CustomEvent("puzzle:timer-set", { detail: { seconds, running: saved.status === "playing" } })
+      );
+    } else {
+      board = new Array(SIZE * SIZE).fill(EMPTY);
+      seconds = 0;
+      setStatus("playing");
+    }
+    render();
+  }
+
+  window.addEventListener("puzzle:timer-tick", (e) => {
+    seconds = (e as CustomEvent<{ seconds: number }>).detail.seconds;
+    if (status === "playing") save();
+  });
+
+  // Save the finishing time the moment it's solved (the timer stops on this same event)
+  window.addEventListener("puzzle:solved", save);
+
+  window.addEventListener("puzzle:difficulty-change", (e) => {
+    difficulty = (e as CustomEvent<{ value: BuoyDifficulty }>).detail.value;
+    load();
+  });
+
+  window.addEventListener("puzzle:new-day", (e) => {
+    dateKey = (e as CustomEvent<{ dateKey: string }>).detail.dateKey;
+    forgetOldProgress(slug);
+    load();
+  });
+
+  forgetOldProgress(slug);
+  load();
 </script>

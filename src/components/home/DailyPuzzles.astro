@@ -1,6 +1,9 @@
 ---
 import { PUZZLE_LIST } from "../../puzzles";
 import { puzzleColorStyle } from "../../puzzles/types";
+
+// Playable puzzles first, then the ones still coming
+const puzzles = [...PUZZLE_LIST].sort((a, b) => Number(!!a.comingSoon) - Number(!!b.comingSoon));
 ---
 
 <section
@@ -16,10 +19,23 @@ import { puzzleColorStyle } from "../../puzzles/types";
     <p class="min-h-5 text-sm font-medium text-muted" data-today-date></p>
   </div>
 
-  <!-- Neutral rows that take on the puzzle's color when hovered -->
+  <!-- Neutral rows that take on the puzzle's color when hovered. Unfinished puzzles show as a plain
+       "Coming soon" row with no link (in dev they still link, so they can be worked on). -->
   <ul class="mt-6 grid grid-cols-1 gap-3 sm:mt-8 sm:gap-4 lg:grid-cols-2">
-    {PUZZLE_LIST.map(({ icon: Icon, ...puzzle }) => (
+    {puzzles.map(({ icon: Icon, ...puzzle }) => (
       <li style={puzzleColorStyle(puzzle.color)}>
+        {puzzle.comingSoon && !import.meta.env.DEV ? (
+          <div class="flex items-center gap-4 rounded-2xl bg-surface/60 px-4 py-4 ring-1 ring-line sm:px-5">
+            <Icon class="h-12 w-12 shrink-0 opacity-50 grayscale" aria-hidden="true" />
+            <span class="min-w-0 flex-1">
+              <span class="flex items-center gap-2">
+                <span class="truncate font-display text-base font-semibold text-ink/60 sm:text-lg">{puzzle.name}</span>
+                <span class="shrink-0 rounded-full bg-ink/8 px-2 py-0.5 text-[11px] font-semibold text-muted">Coming soon</span>
+              </span>
+              <span class="mt-0.5 block text-sm text-muted/80">{puzzle.tagline}</span>
+            </span>
+          </div>
+        ) : (
         <a
           href={`/${puzzle.slug}/`}
           class="group flex items-center gap-4 rounded-2xl bg-surface px-4 py-4 ring-1 ring-line transition-[background-color,box-shadow] duration-200 ease-smooth hover:bg-puzzle/10 hover:ring-puzzle/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-puzzle sm:px-5"
@@ -32,17 +48,28 @@ import { puzzleColorStyle } from "../../puzzles/types";
           <span class="min-w-0 flex-1">
             <span class="flex items-center gap-2">
               <span class="truncate font-display text-base font-semibold text-ink sm:text-lg">{puzzle.name}</span>
-              {puzzle.isNew && (
+              {puzzle.comingSoon ? (
+                <span class="shrink-0 rounded-full bg-ink/8 px-2 py-0.5 text-[11px] font-semibold text-muted">Coming soon</span>
+              ) : puzzle.isNew && (
                 <span class="shrink-0 rounded-full bg-coral/15 px-2 py-0.5 text-[11px] font-semibold text-coral-strong">New</span>
               )}
             </span>
             <span class="mt-0.5 block text-sm text-muted">{puzzle.tagline}</span>
           </span>
 
+          <!-- Days in a row this puzzle has been solved, filled in from this browser's stats -->
+          <span class="hidden shrink-0 items-center gap-1 text-xs font-semibold text-puzzle-strong" data-streak={puzzle.slug}>
+            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
+              <path d="M2 9c2.5-2.5 5-2.5 7.5 0s5 2.5 7.5 0 3.5-1.5 5 0M2 16c2.5-2.5 5-2.5 7.5 0s5 2.5 7.5 0 3.5-1.5 5 0"></path>
+            </svg>
+            <span data-streak-text></span>
+          </span>
+
           <svg class="h-5 w-5 shrink-0 text-muted/60 transition-[color,transform] duration-200 ease-smooth group-hover:translate-x-1 group-hover:text-puzzle-strong" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M9 18l6-6-6-6"></path>
           </svg>
         </a>
+        )}
       </li>
     ))}
   </ul>
@@ -50,6 +77,7 @@ import { puzzleColorStyle } from "../../puzzles/types";
 
 <script>
   import { onNewDay } from "../../puzzles/daily";
+  import { currentStreak } from "../../puzzles/stats";
 
   const dateLabel = document.querySelector<HTMLElement>("[data-today-date]");
   const showDate = () => {
@@ -58,6 +86,19 @@ import { puzzleColorStyle } from "../../puzzles/types";
     }
   };
 
+  const showStreaks = () => {
+    document.querySelectorAll<HTMLElement>("[data-streak]").forEach((el) => {
+      const streak = currentStreak(el.dataset.streak!);
+      el.querySelector("[data-streak-text]")!.textContent = `${streak}-day streak`;
+      el.classList.toggle("hidden", !streak);
+      el.classList.toggle("flex", !!streak);
+    });
+  };
+
   showDate();
-  onNewDay(showDate);
+  showStreaks();
+  onNewDay(() => {
+    showDate();
+    showStreaks(); // a streak with no solve yesterday ends at midnight
+  });
 </script>

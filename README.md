@@ -11,9 +11,9 @@ Cloudflare Workers.
 | Puzzle | What it is | Status |
 | --- | --- | --- |
 | **Sea Glass** | Drag square tiles onto a 7×4 board so every touching edge matches in color. Easy and Hard. | Daily, generated |
-| **Word Chain** | Link pairs of words down a pyramid. | Fixed puzzle (not daily yet) |
-| **Bridges** | Connect numbered islands with bridges. | Fixed puzzle (not daily yet) |
-| **Buoy** | Match every row, column and region count. | Demo placeholder |
+| **Word Chain** | Link pairs of words down a pyramid. | Coming soon (dev only) |
+| **Bridges** | Connect numbered islands with bridges. | Coming soon (dev only) |
+| **Buoy** | Place buoys on a 9×9 board split into regions, matching every row, column and region count. Buoys may touch. Easy and Hard (Hard hides some row and column numbers). | Daily, generated |
 
 ## How the daily puzzles work
 
@@ -22,8 +22,8 @@ generator seeded with the puzzle's slug, the difficulty, and the player's local 
 (`src/puzzles/daily.ts`). Everyone whose calendar shows the same day gets the same puzzle, and it
 changes at their own midnight.
 
-Generators keep making boards until one has **exactly one solution**. Sea Glass's generator and
-solver live in `src/puzzles/SeaGlass/generate.ts`, kept free of page code so the same logic can be
+Generators keep making boards until one has **exactly one solution**. Each generator and
+solver lives in its puzzle folder's `generate.ts`, kept free of page code so the same logic can be
 checked before deploying.
 
 Progress (the board, the time and whether it's finished) is saved in `localStorage` per puzzle,
@@ -37,7 +37,7 @@ difficulty and date. Saves from more than a couple of days ago are cleared autom
 | `npm run dev` | Start the dev server at `localhost:4321` |
 | `npm run build` | Build the site into `dist/` |
 | `npm run preview` | Serve the built site locally |
-| `npm run check:puzzles` | Generate every daily puzzle from a month ago to 3 years ahead and check each has exactly one solution |
+| `npm run check:puzzles` | Generate every daily Sea Glass and Buoy puzzle from a month ago to 3 years ahead and check each has exactly one solution |
 | `npm run deploy` | Check the puzzles, build, and deploy to Cloudflare (stops if any puzzle fails) |
 
 After a fresh clone, run `npx astro sync` once so the editor picks up Astro's types.
@@ -56,6 +56,7 @@ src/
     index.ts               The puzzle list (order shown on the homepage)
     types.ts               PuzzleConfig: what each puzzle can switch on
     daily.ts               Seeded randomness, local dates, saved progress
+    stats.ts               Streaks and best times, kept in the browser
     <Puzzle>/              Each puzzle: component, config, icon, help examples
   layouts/
     Layout.astro           Every page: head tags, header, skip link, theme
@@ -77,7 +78,8 @@ public/                    Favicons and the link-preview image
 1. Create `src/puzzles/<Name>/` with the puzzle component, an icon `.svg` and a `config.ts`
    (see `types.ts` for every option: difficulties, timer, toolbar buttons, help examples).
 2. Add the config to `PUZZLE_LIST` in `src/puzzles/index.ts`. Its page and homepage card appear
-   automatically.
+   automatically. While it's unfinished, set `comingSoon: true`: the card shows "Coming soon" and the
+   page is only built in `npm run dev`.
 3. The puzzle talks to the shared page through window events: it fires `puzzle:solved` when
    solved, and listens for toolbar actions (`puzzle:reset`, `puzzle:reveal`, ...),
    `puzzle:difficulty-change` and `puzzle:new-day`.

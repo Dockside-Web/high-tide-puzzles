@@ -1,19 +1,24 @@
 ---
 import type { SvgComponent } from "astro/types";
+import type { Difficulty } from "../../puzzles/types";
 
 // The same finish for every puzzle. A puzzle only has to fire `puzzle:solved` on window once the
-// board is solved; this pops the board, throws a burst of sea-glass shards, and slides up a card
-// with the time. The Timer stops itself on the same event.
+// board is solved; this sends ripples across the page behind the puzzle, like a pebble dropped in
+// water under the board, then slides up a card with the time. The Timer stops itself on the same event.
 // A puzzle that can be lost fires `puzzle:failed` instead (optionally with { message }): the same
 // card, without the celebration.
+// On a puzzle with more than one difficulty, a win suggests the next one not yet finished today
+// ("Try Hard"), and shows which are done.
 // Listens for: puzzle:solved (show), puzzle:failed (show, lost), puzzle:timer-reset (a new board was loaded, so hide)
 
 interface Props {
+  slug: string;
   name: string;
   icon: SvgComponent;
+  difficulties?: Difficulty[];
 }
 
-const { name, icon: Icon } = Astro.props;
+const { slug, name, icon: Icon, difficulties = [] } = Astro.props;
 ---
 
 <div
@@ -23,6 +28,8 @@ const { name, icon: Icon } = Astro.props;
   aria-modal="true"
   aria-labelledby="solved-title"
   data-name={name}
+  data-slug={slug}
+  data-difficulties={JSON.stringify(difficulties)}
 >
   <div class="solved-card w-full max-w-sm rounded-3xl bg-surface p-7 text-center shadow-xl ring-1 ring-line sm:p-8">
     <Icon class="solved-icon mx-auto h-14 w-14" aria-hidden="true" />
@@ -35,26 +42,53 @@ const { name, icon: Icon } = Astro.props;
     <div class="mt-5 hidden" data-solved-time-row>
       <p class="font-mono text-4xl font-bold tabular-nums text-ink" data-solved-time></p>
       <p class="mt-1 text-xs font-semibold tracking-wide text-muted uppercase">Your time</p>
+      <!-- Against past times: "New best! Previous 03:40", or "Best 02:40 · Yesterday 03:12" -->
+      <p class="mt-2 hidden text-sm font-semibold text-muted" data-solved-compare></p>
     </div>
 
+    <!-- Days in a row with this puzzle solved -->
+    <p class="mt-5 hidden items-center justify-center gap-1.5 text-sm font-semibold text-puzzle-strong" data-solved-streak>
+      <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+        <path d="M2 9c2.5-2.5 5-2.5 7.5 0s5 2.5 7.5 0 3.5-1.5 5 0M2 16c2.5-2.5 5-2.5 7.5 0s5 2.5 7.5 0 3.5-1.5 5 0"></path>
+      </svg>
+      <span data-solved-streak-text></span>
+    </p>
+
+    <!-- Which of today's difficulties are finished (puzzles with more than one) -->
+    <p class="mt-3 hidden text-xs font-semibold text-muted" data-solved-progress></p>
+
     <div class="mt-7 flex flex-col gap-2 sm:flex-row-reverse">
-      <a
-        href="/"
-        class="flex-1 rounded-full bg-puzzle-strong px-5 py-2.5 text-sm font-semibold text-on-color transition-transform hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-puzzle focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-        data-solved-primary
-      >
-        More puzzles
-      </a>
+      <!-- "Try Hard": shown when another difficulty is still to do today -->
       <button
         type="button"
-        class="flex-1 cursor-pointer rounded-full px-5 py-2.5 text-sm font-semibold text-muted ring-1 ring-line transition-colors hover:bg-ink/5 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-puzzle"
-        data-solved-close
-      >
-        View board
-      </button>
+        class="hidden flex-1 cursor-pointer rounded-full bg-puzzle-strong px-5 py-2.5 text-sm font-semibold text-on-color transition-transform hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-puzzle focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+        data-solved-next
+      ></button>
+      <a href="/" class="flex-1" data-solved-more>More puzzles</a>
     </div>
+
+    <button
+      type="button"
+      class="mt-4 cursor-pointer text-sm font-semibold text-muted underline-offset-4 transition-colors hover:text-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-puzzle"
+      data-solved-close
+    >
+      View board
+    </button>
+
+    <p class="mt-5 border-t border-line pt-4 text-xs font-medium text-muted" data-solved-next-day></p>
   </div>
 </div>
+
+<!-- Dev only (npm run dev, never in the built site): plays the ripple without solving anything -->
+{import.meta.env.DEV && (
+  <button
+    type="button"
+    class="fixed right-4 bottom-4 z-50 cursor-pointer rounded-full bg-ink px-4 py-2 text-xs font-semibold text-canvas shadow-lg"
+    data-test-ripple
+  >
+    Test ripple
+  </button>
+)}
 
 <style>
   #solved-celebration.is-open .solved-card {
@@ -69,11 +103,6 @@ const { name, icon: Icon } = Astro.props;
     animation: solved-fade-in 0.3s ease both;
   }
 
-  /* The board gives a little bounce the moment it's solved */
-  :global(.solved-pop) {
-    animation: solved-pop 0.5s cubic-bezier(0.2, 1.5, 0.4, 1);
-  }
-
   @keyframes solved-fade-in {
     from { opacity: 0; }
   }
@@ -86,21 +115,19 @@ const { name, icon: Icon } = Astro.props;
     from { opacity: 0; transform: scale(0.3) rotate(-20deg); }
   }
 
-  @keyframes solved-pop {
-    40% { transform: scale(1.04); }
-  }
-
   @media (prefers-reduced-motion: reduce) {
     #solved-celebration.is-open,
     #solved-celebration.is-open .solved-card,
-    #solved-celebration.is-open .solved-icon,
-    :global(.solved-pop) {
+    #solved-celebration.is-open .solved-icon {
       animation: none;
     }
   }
 </style>
 
 <script>
+  import { loadProgress, localDateKey } from "../../puzzles/daily";
+  import { recordSolve, type SolveResult } from "../../puzzles/stats";
+
   const CHEERS = [
     "Shipshape!",
     "Smooth sailing!",
@@ -111,8 +138,7 @@ const { name, icon: Icon } = Astro.props;
     "Right on course!",
     "Sea-riously good!",
   ];
-  const SHARD_COLORS = ["ocean", "coral", "sun", "seafoam"];
-  const CARD_DELAY_MS = 650;
+  const CARD_DELAY_MS = 1500;
 
   const overlay = document.getElementById("solved-celebration")!;
   const cheer = overlay.querySelector<HTMLElement>("[data-solved-cheer]")!;
@@ -120,8 +146,105 @@ const { name, icon: Icon } = Astro.props;
   const summary = overlay.querySelector<HTMLElement>("[data-solved-summary]")!;
   const timeRow = overlay.querySelector<HTMLElement>("[data-solved-time-row]")!;
   const time = overlay.querySelector<HTMLElement>("[data-solved-time]")!;
-  const primary = overlay.querySelector<HTMLElement>("[data-solved-primary]")!;
+  const progress = overlay.querySelector<HTMLElement>("[data-solved-progress]")!;
+  const compare = overlay.querySelector<HTMLElement>("[data-solved-compare]")!;
+  const streakRow = overlay.querySelector<HTMLElement>("[data-solved-streak]")!;
+  const streakText = overlay.querySelector<HTMLElement>("[data-solved-streak-text]")!;
+  const nextDay = overlay.querySelector<HTMLElement>("[data-solved-next-day]")!;
+  const nextBtn = overlay.querySelector<HTMLButtonElement>("[data-solved-next]")!;
+  const more = overlay.querySelector<HTMLElement>("[data-solved-more]")!;
   const closeBtn = overlay.querySelector<HTMLElement>("[data-solved-close]")!;
+  const slug = overlay.dataset.slug!;
+  const difficulties: { id: string; label: string }[] = JSON.parse(overlay.dataset.difficulties || "[]");
+  let nextDifficulty: string | null = null;
+  /** The stats from the solve being shown (null for a loss) */
+  let result: SolveResult | null = null;
+  let nextDayTimer = 0;
+
+  const formatTime = (seconds: number) =>
+    `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+  /** "03:12" off the timer, as seconds (null if there's no timer) */
+  const readTimer = () => {
+    const [m, sec] = (document.getElementById("timer-display")?.textContent ?? "").split(":").map(Number);
+    return Number.isFinite(m) && Number.isFinite(sec) ? m * 60 + sec : null;
+  };
+  const currentDifficulty = () =>
+    document.querySelector<HTMLElement>('[data-event="puzzle:difficulty-change"] [aria-pressed="true"]')?.dataset.value;
+
+  /** "Next puzzle in 6h 12m", counting down to the player's midnight. */
+  function showNextDay() {
+    const now = new Date();
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const minutes = Math.max(1, Math.ceil((midnight.getTime() - now.getTime()) / 60000));
+    const h = Math.floor(minutes / 60);
+    nextDay.textContent = `Next puzzle in ${h ? `${h}h ` : ""}${minutes % 60}m`;
+  }
+
+  /** The line under the time, and the streak. */
+  function showStats(seconds: number | null) {
+    let line = "";
+    if (result && seconds !== null) {
+      const best = result.previousBest;
+      if (result.newBest) line = `New best! Previous ${formatTime(best!)}`;
+      else if (best === null) line = "First solve!";
+      else {
+        line = `Best ${formatTime(result.repeat ? best : Math.min(best, seconds))}`;
+        if (result.yesterday !== null) line += ` · Yesterday ${formatTime(result.yesterday)}`;
+      }
+    }
+    compare.textContent = line;
+    compare.classList.toggle("hidden", !line);
+    compare.classList.toggle("text-puzzle-strong", !!result?.newBest);
+
+    const streak = result?.streak ?? 0;
+    streakText.textContent = `${streak}-day streak`;
+    streakRow.classList.toggle("hidden", !streak);
+    streakRow.classList.toggle("flex", !!streak);
+  }
+
+  // "More puzzles" is the main button unless there's another difficulty to try, then it steps back
+  const BUTTON = "rounded-full px-5 py-2.5 text-center text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-puzzle";
+  const MAIN_BUTTON = `${BUTTON} bg-puzzle-strong text-on-color transition-transform hover:scale-[1.03] focus-visible:ring-offset-2 focus-visible:ring-offset-surface`;
+  const SECOND_BUTTON = `${BUTTON} text-muted ring-1 ring-line transition-colors hover:bg-ink/5 hover:text-ink`;
+
+  /** Today's finished difficulties: the one just won, plus any saved as solved or revealed. */
+  function finishedToday(current: string | undefined) {
+    const dateKey = localDateKey();
+    return new Set(
+      difficulties
+        .filter(({ id }) => {
+          if (id === current) return true;
+          const status = loadProgress<{ status?: string }>(slug, id, dateKey)?.status;
+          return status === "solved" || status === "revealed";
+        })
+        .map(({ id }) => id)
+    );
+  }
+
+  /** Fills in the difficulty line and the "Try …" button (or hides both on a one-difficulty puzzle). */
+  function showDifficulties(won: boolean) {
+    const current = document.querySelector<HTMLElement>('[data-event="puzzle:difficulty-change"] [aria-pressed="true"]')?.dataset.value;
+    const many = difficulties.length > 1;
+    const finished = finishedToday(won ? current : undefined);
+
+    progress.classList.toggle("hidden", !many);
+    progress.innerHTML = difficulties
+      .map(({ id, label }) =>
+        finished.has(id)
+          ? `<span class="text-puzzle-strong">${label} <span aria-hidden="true">✓</span><span class="sr-only">(done)</span></span>`
+          : `<span>${label}</span>`
+      )
+      .join(' <span aria-hidden="true">·</span> ');
+
+    // The next difficulty after this one that isn't done, wrapping around (Hard → Easy)
+    const first = difficulties.findIndex(({ id }) => id === current);
+    const ordered = [...difficulties.slice(first + 1), ...difficulties.slice(0, Math.max(first, 0))];
+    const next = won && many ? ordered.find(({ id }) => !finished.has(id)) : undefined;
+    nextDifficulty = next?.id ?? null;
+    nextBtn.classList.toggle("hidden", !next);
+    nextBtn.textContent = next ? `Try ${next.label}` : "";
+    more.className = `flex-1 ${next ? SECOND_BUTTON : MAIN_BUTTON}`;
+  }
   let cardTimer = 0;
 
   const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -140,101 +263,115 @@ const { name, icon: Icon } = Astro.props;
       : `You finished today's ${puzzleName}.`;
     timeRow.classList.toggle("hidden", !finishTime || failed);
     time.textContent = finishTime ?? "";
+    showStats(failed ? null : readTimer());
+    showDifficulties(!failed);
+    showNextDay();
+    window.clearInterval(nextDayTimer);
+    nextDayTimer = window.setInterval(showNextDay, 30000);
 
     overlay.classList.remove("hidden");
     overlay.classList.add("flex", "is-open");
     // Focus for keyboard players, without drawing the focus ring until they actually use the keyboard
-    primary.focus({ focusVisible: false } as FocusOptions);
+    (nextDifficulty ? nextBtn : more).focus({ focusVisible: false } as FocusOptions);
   }
 
   function close() {
     window.clearTimeout(cardTimer);
+    window.clearInterval(nextDayTimer);
     overlay.classList.add("hidden");
     overlay.classList.remove("flex", "is-open");
   }
 
-  // ---------- Sea-glass shards ----------
-  interface Shard {
-    x: number; y: number; vx: number; vy: number;
-    angle: number; spin: number; tumble: number; tumbleSpeed: number;
-    points: [number, number][]; color: string;
-  }
+  // ---------- Ripple ----------
+  /**
+   * Water ripples spreading out across the whole page from the middle of the screen, then settling.
+   * Drawn behind everything, so they pass under the puzzle and show around it.
+   */
+  function ripple(board: HTMLElement) {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const originX = width / 2;
+    const originY = height / 2;
+    // The whole puzzle (board, and Sea Glass's tile bank under it), for where the waves start
+    const rect = (board.firstElementChild ?? board).getBoundingClientRect();
 
-  /** Throws triangle shards in the site's colors up and out from a point, then lets them fall. */
-  function burst(originX: number, originY: number) {
     const canvas = document.createElement("canvas");
     canvas.setAttribute("aria-hidden", "true");
-    canvas.style.cssText = "position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:50";
+    // z-index -1: above the page background, below all content
+    canvas.style.cssText = "position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:-1";
     document.body.appendChild(canvas);
 
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = window.innerWidth * dpr;
-    canvas.height = window.innerHeight * dpr;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
     const ctx = canvas.getContext("2d")!;
     ctx.scale(dpr, dpr);
 
-    const styles = getComputedStyle(document.documentElement);
-    const colors = SHARD_COLORS.map((name) => `rgb(${styles.getPropertyValue(`--${name}`).trim()})`);
-    const count = window.innerWidth < 640 ? 90 : 150;
+    // Each wave is a soft shadow (its trough) just inside a light highlight (its crest)
+    const dark = document.documentElement.classList.contains("dark");
+    const shadow = dark ? "0 0 0" : "11 94 117";
+    const light = dark ? "190 225 240" : "255 255 255";
+    const shadowStrength = dark ? 0.7 : 0.3;
+    const lightStrength = dark ? 0.45 : 1;
 
-    const shards: Shard[] = Array.from({ length: count }, () => {
-      const direction = -Math.PI / 2 + (Math.random() - 0.5) * 2.4; // mostly upward
-      const speed = 7 + Math.random() * 11;
-      const size = 6 + Math.random() * 8;
-      return {
-        x: originX + (Math.random() - 0.5) * 60,
-        y: originY + (Math.random() - 0.5) * 30,
-        vx: Math.cos(direction) * speed,
-        vy: Math.sin(direction) * speed,
-        angle: Math.random() * Math.PI * 2,
-        spin: (Math.random() - 0.5) * 0.3,
-        tumble: Math.random() * Math.PI * 2,
-        tumbleSpeed: 0.05 + Math.random() * 0.1,
-        // An uneven triangle, like a broken piece of glass
-        points: [0, 1, 2].map((i) => {
-          const a = (i / 3) * Math.PI * 2 + (Math.random() - 0.5) * 1.2;
-          const r = size * (0.6 + Math.random() * 0.5);
-          return [Math.cos(a) * r, Math.sin(a) * r] as [number, number];
-        }),
-        color: colors[Math.floor(Math.random() * colors.length)],
-      };
+    // Far enough to pass the farthest corner of the screen
+    const reach = Math.max(
+      ...[[0, 0], [width, 0], [0, height], [width, height]].map(([x, y]) => Math.hypot(x - originX, y - originY))
+    ) + 80;
+    // Waves under the puzzle can't be seen, so they start about at its edge
+    const start = Math.min(rect.width, rect.height) / 2;
+
+    const WAVES = 6;
+    const WAVE_GAP_MS = 170;
+    const WAVE_MS = 2800; // time for one wave to cross the screen
+    const started = performance.now();
+
+    // The page rides the swell: the header and each block of the puzzle page (marked data-float)
+    // lift and settle when the first wave reaches them. Uses `translate`, so it never fights a
+    // transform the element already has.
+    const BOB_MS = 1400;
+    const BOB_PX = 7;
+    const bob = Array.from({ length: 29 }, (_, k) => {
+      const t = k / 28;
+      const y = -BOB_PX * Math.exp(-3.2 * t) * Math.sin(2 * Math.PI * 2.5 * t);
+      return { translate: `0 ${y.toFixed(2)}px` };
+    });
+    document.querySelectorAll<HTMLElement>("header, [data-float]").forEach((el) => {
+      const r = el.getBoundingClientRect();
+      const distance = Math.hypot(r.left + r.width / 2 - originX, r.top + r.height / 2 - originY);
+      const arrive = (Math.max(0, distance - start) / (reach - start)) * WAVE_MS;
+      el.animate(bob, { duration: BOB_MS, delay: arrive });
     });
 
-    const DURATION = 3200;
-    const started = performance.now();
-    let last = started;
-
     function frame(now: number) {
-      const step = Math.min((now - last) / 16.67, 3); // in 60fps frames, so speed is the same at any refresh rate
-      last = now;
       const elapsed = now - started;
-      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-      ctx.globalAlpha = Math.min(1, (DURATION - elapsed) / 700);
+      ctx.clearRect(0, 0, width, height);
 
-      for (const s of shards) {
-        s.vy += 0.32 * step;
-        s.vx *= Math.pow(0.985, step);
-        s.vy *= Math.pow(0.985, step);
-        s.x += s.vx * step;
-        s.y += s.vy * step;
-        s.angle += s.spin * step;
-        s.tumble += s.tumbleSpeed * step;
+      for (let i = 0; i < WAVES; i++) {
+        const t = (elapsed - i * WAVE_GAP_MS) / WAVE_MS;
+        if (t <= 0 || t >= 1) continue;
+        // Steady speed like real water; waves widen and weaken as they travel, and each one after
+        // the first is a little weaker, like a ripple settling
+        const radius = start + t * (reach - start);
+        const half = 10 + 30 * t;
+        const strength = Math.pow(1 - t, 1.6) * (1 - i / (WAVES + 1));
+        const inner = Math.max(radius - half, 0);
 
-        ctx.save();
-        ctx.translate(s.x, s.y);
-        ctx.rotate(s.angle);
-        ctx.scale(1, Math.cos(s.tumble)); // flipping over as it falls
-        ctx.fillStyle = s.color;
+        const gradient = ctx.createRadialGradient(originX, originY, inner, originX, originY, radius + half);
+        gradient.addColorStop(0, `rgb(${shadow} / 0)`);
+        gradient.addColorStop(0.3, `rgb(${shadow} / ${shadowStrength * strength})`);
+        gradient.addColorStop(0.55, `rgb(${shadow} / 0)`);
+        gradient.addColorStop(0.72, `rgb(${light} / ${lightStrength * strength})`);
+        gradient.addColorStop(1, `rgb(${light} / 0)`);
+
         ctx.beginPath();
-        ctx.moveTo(...s.points[0]);
-        ctx.lineTo(...s.points[1]);
-        ctx.lineTo(...s.points[2]);
-        ctx.closePath();
+        ctx.arc(originX, originY, radius + half, 0, Math.PI * 2);
+        ctx.arc(originX, originY, inner, 0, Math.PI * 2, true);
+        ctx.fillStyle = gradient;
         ctx.fill();
-        ctx.restore();
       }
 
-      if (elapsed < DURATION) requestAnimationFrame(frame);
+      if (elapsed < (WAVES - 1) * WAVE_GAP_MS + WAVE_MS) requestAnimationFrame(frame);
       else canvas.remove();
     }
     requestAnimationFrame(frame);
@@ -243,33 +380,37 @@ const { name, icon: Icon } = Astro.props;
   // ---------- Events ----------
   window.addEventListener("puzzle:solved", () => {
     const board = document.querySelector<HTMLElement>("[data-puzzle-board]");
+    result = recordSolve(slug, currentDifficulty() ?? "default", readTimer());
 
     if (reducedMotion()) {
       open();
       return;
     }
 
-    if (board) {
-      board.classList.remove("solved-pop");
-      void board.offsetWidth; // restart the animation if it already ran
-      board.classList.add("solved-pop");
-      const rect = board.getBoundingClientRect();
-      burst(rect.left + rect.width / 2, rect.top + rect.height / 2);
-    } else {
-      burst(window.innerWidth / 2, window.innerHeight / 2);
-    }
-    cardTimer = window.setTimeout(open, CARD_DELAY_MS);
+    if (board) ripple(board);
+    cardTimer = window.setTimeout(open, board ? CARD_DELAY_MS : 0);
   });
 
-  // Lost: no bounce or shards, and a pause first so the player sees what was marked wrong
+  // Lost: no ripple, and a pause first so the player sees what was marked wrong
   window.addEventListener("puzzle:failed", (e) => {
     const message = (e as CustomEvent<{ message?: string } | null>).detail?.message ?? "";
+    result = null;
     window.clearTimeout(cardTimer);
     cardTimer = window.setTimeout(() => open(message), reducedMotion() ? 0 : 1200);
   });
 
+  document.querySelector("[data-test-ripple]")?.addEventListener("click", () => {
+    const board = document.querySelector<HTMLElement>("[data-puzzle-board]");
+    if (board) ripple(board);
+  });
+
   window.addEventListener("puzzle:timer-reset", close);
   closeBtn.addEventListener("click", close);
+  // Switch tabs the same way a player would, so the puzzle and timer follow
+  nextBtn.addEventListener("click", () => {
+    close();
+    document.querySelector<HTMLElement>(`[data-event="puzzle:difficulty-change"] [data-value="${nextDifficulty}"]`)?.click();
+  });
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) close();
   });

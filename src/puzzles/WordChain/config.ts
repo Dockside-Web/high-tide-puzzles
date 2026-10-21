@@ -18,7 +18,7 @@ const config: PuzzleConfig = {
     hint: false,
     reset: false
   },
-  isNew: true
+  comingSoon: true
 };
 
 export default config;

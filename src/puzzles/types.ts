@@ -44,6 +44,8 @@ export interface PuzzleConfig {
   toolbar?: PuzzleToolbarConfig;
 
   isNew?: boolean;
+  /** Not finished: shown on the homepage as "Coming soon" (not clickable), and its page is only built in dev */
+  comingSoon?: boolean;
 }
 
 /** Inline style that tints an element (and everything inside it) with a puzzle's color. */

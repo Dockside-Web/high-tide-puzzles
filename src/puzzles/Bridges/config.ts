@@ -15,7 +15,7 @@ const config: PuzzleConfig = {
     undo: true,
     reset: true
   },
-  isNew: true
+  comingSoon: true
 };
 
 export default config;

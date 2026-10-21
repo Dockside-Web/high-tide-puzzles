@@ -5,7 +5,9 @@ import { PUZZLES } from "../puzzles";
 // Only the slug goes through getStaticPaths. Its results are cached in dev, so passing the
 // puzzle config as props would keep serving old components/config after you edit them.
 export function getStaticPaths() {
-  return Object.keys(PUZZLES).map((id) => ({ params: { id } }));
+  return Object.values(PUZZLES)
+    .filter((puzzle) => !puzzle.comingSoon || import.meta.env.DEV)
+    .map(({ slug }) => ({ params: { id: slug } }));
 }
 
 const puzzle = PUZZLES[Astro.params.id!];
