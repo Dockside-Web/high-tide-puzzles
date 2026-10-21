@@ -92,7 +92,6 @@ const OFFSET = 11; // gap between the two lines of a double bridge
       );
     })}
 
-    <!-- Islands -->
     {islands.map((island) => (
       <g class="bridges__island" data-island={island.id} transform={`translate(${center(island.c)} ${center(island.r)})`}>
         <circle r="36" />
@@ -128,7 +127,6 @@ const OFFSET = 11; // gap between the two lines of a double bridge
     fill: rgb(var(--ink) / 0.12);
   }
 
-  /* Bridges */
   .bridges__line {
     stroke: rgb(var(--ink));
     stroke-width: 6;
@@ -166,7 +164,6 @@ const OFFSET = 11; // gap between the two lines of a double bridge
     cursor: pointer;
   }
 
-  /* Islands */
   .bridges__island {
     cursor: pointer;
   }

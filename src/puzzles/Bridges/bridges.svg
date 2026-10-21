@@ -6,7 +6,6 @@
     <path d="M25 10H39M25 18H39M14 25V39M46 25V39M54 25V39M25 50H39" stroke="#8fd0e8" stroke-width="3.6"/>
   </g>
 
-  <!-- Islands -->
   <g fill="#ffffff" stroke="#1c2433" stroke-width="3.5">
     <circle cx="14" cy="14" r="11"/>
     <circle cx="50" cy="14" r="11"/>

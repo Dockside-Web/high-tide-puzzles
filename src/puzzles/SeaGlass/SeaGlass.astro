@@ -39,7 +39,6 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
     </button>
   </template>
 
-  <!-- Board -->
   <div class="sea-glass__board" data-board>
     {Array.from({ length: ROWS * COLS }, (_, i) => (
       <div
@@ -56,7 +55,6 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
   <!-- "Solved in 02:14" / "Solution revealed" once the board is finished -->
   <p class="sea-glass__status" data-status-message aria-live="polite" hidden></p>
 
-  <!-- Bank -->
   <div class="sea-glass__bank-wrap">
     <div class="sea-glass__bank" data-bank>
       {Array.from({ length: ROWS * COLS }, (_, i) => (

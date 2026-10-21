@@ -97,7 +97,6 @@ const { horizontalEdges, verticalEdges } = getRegionEdges();
   </div>
 
   <div>
-    <!-- 9x9 Grid Container -->
     <!-- Region borders are a solid color clearly darker than shaded cells, so shading visibly stops at them -->
     <div style="--region-border: color-mix(in srgb, rgb(var(--ink)) 45%, rgb(var(--surface)))" class="relative overflow-hidden rounded-xl border-2 border-(--region-border) bg-surface shadow-lg">
       <!-- SVG Layer for Connected Region Lines -->
@@ -131,7 +130,6 @@ const { horizontalEdges, verticalEdges } = getRegionEdges();
         ))}
       </svg>
 
-      <!-- Dynamic Grid Cells -->
       <div class="grid grid-cols-9">
         {
           gridData.map((row, r) =>

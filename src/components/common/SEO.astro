@@ -2,7 +2,6 @@
 interface Props {
   title?: string;
   description: string;
-  /** Keep the page out of search results (404, unfinished pages) */
   noindex?: boolean;
 }
 
@@ -17,8 +16,6 @@ const socialImageAlt = "High Tide Puzzles: free daily puzzles";
 const canonicalURL = new URL(Astro.url.pathname, Astro.site).href;
 const isHome = Astro.url.pathname === "/";
 
-// If a title exists (a puzzle, Privacy Policy, etc.), show "Page | Brand"
-// If no title exists (Home), show "Brand | Tagline"
 const siteTitle = title
   ? `${title} | ${brandName}`
   : `${brandName} | ${homepageTagline}`;
@@ -32,12 +29,10 @@ const websiteData = {
 };
 ---
 
-<!-- Primary -->
 <title>{siteTitle}</title>
 <meta name="description" content={description} />
 {noindex ? <meta name="robots" content="noindex" /> : <link rel="canonical" href={canonicalURL} />}
 
-<!-- Open Graph -->
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content={brandName} />
 <meta property="og:url" content={canonicalURL} />
@@ -48,7 +43,6 @@ const websiteData = {
 <meta property="og:image:height" content="630" />
 <meta property="og:image:alt" content={socialImageAlt} />
 
-<!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content={siteTitle} />
 <meta name="twitter:description" content={description} />

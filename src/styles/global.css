@@ -43,7 +43,6 @@ html {
   --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   --font-logo: "Fredoka", ui-rounded, ui-sans-serif, system-ui, sans-serif;
 
-  /* Custom transition timing */
   --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
 }
 

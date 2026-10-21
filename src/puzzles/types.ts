@@ -27,11 +27,11 @@ export interface PuzzleToolbarConfig {
 export interface PuzzleConfig {
   slug: string;
   name: string;
-  component: any; // Astro component type reference
+  component: any;
   /** An imported .svg file, drawn inline (so it never gets stuck in the browser cache) */
   icon: SvgComponent;
   color: PuzzleColor;
-  /** One short line under the name on the homepage */
+  /** One short line under the name on the homepage, also the start of the page's search description */
   tagline: string;
   instructions: string;
   /** Picture examples shown under the instructions in "How to play" (an Astro component) */
