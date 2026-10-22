@@ -25,6 +25,7 @@ const indexes = Array.from({ length: SIZE }, (_, i) => i);
   style="--cell: clamp(1.6rem, min(8.5vw, calc((100dvh - 17.5rem) / 10)), 3.1rem)"
   data-buoy-root
   data-slug={puzzle.slug}
+  data-difficulties={(puzzle.difficulties ?? []).map((d) => d.id).join(" ")}
   data-status="loading"
 >
   <!-- Column clues (corner spacer first) -->
@@ -49,6 +50,7 @@ const indexes = Array.from({ length: SIZE }, (_, i) => i);
   <div
     style="--region-border: color-mix(in srgb, rgb(var(--ink)) 45%, rgb(var(--surface)))"
     class="relative overflow-hidden rounded-xl border-2 border-(--region-border) bg-surface shadow-lg"
+    data-splash
   >
     <!-- Shown over the board while the day's puzzle is being made -->
     <p class="buoy__loading" aria-live="polite"><span>Shuffling today's board…</span></p>
@@ -107,9 +109,14 @@ const indexes = Array.from({ length: SIZE }, (_, i) => i);
     color: rgb(var(--coral-strong));
   }
 
+  /* Solid (the same shade as ocean at 20% over the board) with a hair of it spilling past the
+     edges: at some screen scalings neighboring cells round apart and leave a sliver of gap, which
+     would show the darker board behind as a thin line */
   .buoy__cell[data-state="1"],
   .buoy__cell[data-state="2"] {
-    background: rgb(var(--ocean) / 0.2);
+    --water: color-mix(in srgb, rgb(var(--ocean)) 20%, rgb(var(--surface)));
+    background: var(--water);
+    box-shadow: 0 0 0 0.5px var(--water);
   }
 
   .buoy__cell:focus-visible {
@@ -192,7 +199,7 @@ const indexes = Array.from({ length: SIZE }, (_, i) => i);
 </style>
 
 <script>
-  import { dailyRandom, forgetOldProgress, loadProgress, localDateKey, saveProgress } from "../daily";
+  import { dailyPuzzles, forgetOldProgress, loadProgress, localDateKey, saveProgress } from "../daily";
   import { SIZE, generateBuoy, type BuoyDifficulty, type BuoyPuzzle } from "./generate";
 
   const EMPTY = 0;
@@ -215,6 +222,7 @@ const indexes = Array.from({ length: SIZE }, (_, i) => i);
   const rowClues = Array.from(root.querySelectorAll<HTMLElement>("[data-row-clue]"));
   const colClues = Array.from(root.querySelectorAll<HTMLElement>("[data-col-clue]"));
   const bordersSvg = root.querySelector<SVGSVGElement>("[data-borders]")!;
+  const puzzles = dailyPuzzles(slug, root.dataset.difficulties!.split(" ") as BuoyDifficulty[], generateBuoy);
 
   let dateKey = localDateKey();
   let difficulty: BuoyDifficulty = "easy"; // the first difficulty tab starts selected
@@ -320,13 +328,21 @@ const indexes = Array.from({ length: SIZE }, (_, i) => i);
   // ---------- Changing cells ----------
   /** After any change: redraw, catch the moment it's solved, and save. */
   function changed(pop: number | null = null) {
-    render(pop);
     const solved = board.every((state, cell) => (state === BUOY) === puzzle.solution[cell]);
     if (solved && status === "playing") {
       setStatus("solved");
+      fillWater();
+      render(pop);
       window.dispatchEvent(new Event("puzzle:solved"));
+    } else {
+      render(pop);
     }
     save();
+  }
+
+  /** Once solved, every cell left empty becomes water so the finished board has no loose ends. */
+  function fillWater() {
+    board = board.map((state) => (state === EMPTY ? WATER : state));
   }
 
   /** One undoable change to a single cell (keyboard and Hint). */
@@ -452,16 +468,18 @@ const indexes = Array.from({ length: SIZE }, (_, i) => i);
 
   // ---------- Loading a day ----------
   /**
-   * Shows "Shuffling…", then makes the day's puzzle and lays out the saved board if there is one,
-   * otherwise an empty one.
+   * Gets the day's puzzle (showing "Shuffling…" if it still has to be made) and lays out the saved
+   * board if there is one, otherwise an empty one. Then makes the other difficulties in the background.
    */
   async function load() {
     const id = ++loadId;
-    setStatus("loading");
-    await nextPaint();
-    if (id !== loadId) return; // switched difficulty (or day) again in the meantime
+    if (!puzzles.has(difficulty, dateKey)) {
+      setStatus("loading");
+      await nextPaint();
+      if (id !== loadId) return; // switched difficulty (or day) again in the meantime
+    }
 
-    puzzle = generateBuoy(dailyRandom(slug, difficulty, dateKey), difficulty);
+    puzzle = puzzles.get(difficulty, dateKey);
     drawPuzzle();
     undoStack = [];
 
@@ -470,6 +488,7 @@ const indexes = Array.from({ length: SIZE }, (_, i) => i);
       board = saved.cells;
       seconds = saved.seconds;
       setStatus(saved.status);
+      if (saved.status === "solved") fillWater(); // boards solved before empties were filled in
       window.dispatchEvent(
         new CustomEvent("puzzle:timer-set", { detail: { seconds, running: saved.status === "playing" } })
       );
@@ -479,6 +498,7 @@ const indexes = Array.from({ length: SIZE }, (_, i) => i);
       setStatus("playing");
     }
     render();
+    puzzles.prepare(dateKey);
   }
 
   window.addEventListener("puzzle:timer-tick", (e) => {

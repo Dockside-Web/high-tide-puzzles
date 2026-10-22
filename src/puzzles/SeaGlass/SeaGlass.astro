@@ -26,6 +26,7 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
   class="sea-glass"
   data-sea-glass-root
   data-slug={puzzle.slug}
+  data-difficulties={(puzzle.difficulties ?? []).map((d) => d.id).join(" ")}
   data-rows={ROWS}
   data-cols={COLS}
   style={`--cols: ${COLS}`}
@@ -39,7 +40,7 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
     </button>
   </template>
 
-  <div class="sea-glass__board" data-board>
+  <div class="sea-glass__board" data-board data-splash>
     {Array.from({ length: ROWS * COLS }, (_, i) => (
       <div
         class="sea-glass__slot"
@@ -173,6 +174,16 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
     cursor: pointer;
   }
 
+  /* In the bank, each tile sits slightly inset with rounded corners so neighbors read as separate
+     pieces. (A grid gap would make the bank wider than the board.) The board stays seamless. */
+  .sea-glass__bank .sea-glass__slot {
+    padding: 2px;
+  }
+
+  .sea-glass__bank .sea-glass__tile {
+    border-radius: 4px;
+  }
+
   .sea-glass__tile {
     position: relative;
     display: block;
@@ -276,7 +287,7 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
 </style>
 
 <script>
-  import { dailyRandom, forgetOldProgress, loadProgress, localDateKey, saveProgress } from "../daily";
+  import { dailyPuzzles, forgetOldProgress, loadProgress, localDateKey, saveProgress } from "../daily";
   import { generateSeaGlass, type SeaGlassDifficulty } from "./generate";
 
   type Status = "loading" | "playing" | "solved" | "revealed";
@@ -299,6 +310,7 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
 
   function initSeaGlass(root: HTMLElement) {
     const slug = root.dataset.slug!;
+    const puzzles = dailyPuzzles(slug, root.dataset.difficulties!.split(" ") as SeaGlassDifficulty[], generateSeaGlass);
     let dateKey = localDateKey();
     let difficulty: SeaGlassDifficulty = "easy"; // the first difficulty tab starts selected
     const rows = Number(root.dataset.rows);
@@ -471,20 +483,23 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
     }
 
     /**
-     * Shows "Shuffling…", then makes the tiles for the current date and difficulty and lays them
-     * out: from the saved board if there is one, otherwise all in the bank.
+     * Gets the tiles for the current date and difficulty (showing "Shuffling…" if they still have to
+     * be made) and lays them out: from the saved board if there is one, otherwise all in the bank.
+     * Then makes the other difficulties in the background.
      */
     async function load() {
       const id = ++loadId;
       tiles.forEach((t) => t.remove());
       tiles = [];
-      setStatus("loading");
-      update();
 
-      await nextPaint();
-      if (id !== loadId) return; // switched difficulty (or day) again in the meantime
+      if (!puzzles.has(difficulty, dateKey)) {
+        setStatus("loading");
+        update();
+        await nextPaint();
+        if (id !== loadId) return; // switched difficulty (or day) again in the meantime
+      }
 
-      const puzzle = generateSeaGlass(dailyRandom(slug, difficulty, dateKey), difficulty);
+      const puzzle = puzzles.get(difficulty, dateKey);
       solution = puzzle.solution;
       tiles = puzzle.bank.map(makeTile);
 
@@ -508,6 +523,7 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
         setStatus("playing");
       }
       update();
+      puzzles.prepare(dateKey);
     }
 
     // ---------- Drag ----------
@@ -582,7 +598,8 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
         if (!moved && Math.hypot(e.clientX - startX, e.clientY - startY) > 3) {
           moved = true;
           select(null);
-          const rect = tile.getBoundingClientRect();
+          // The space, not the tile: bank tiles are inset, and the copy should be full size on the board
+          const rect = (tile.parentElement as HTMLElement).getBoundingClientRect();
           // Keep the tile where it was grabbed relative to the pointer, so nothing jumps
           dx = rect.left - startX;
           dy = rect.top - startY;

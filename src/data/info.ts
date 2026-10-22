@@ -1,6 +1,6 @@
 export const info = {
   name: "High Tide Puzzles",
-  email: "help@test.com",
-  emailHref: "mailto:help@test.com",
+  email: "riley@docksideweb.com",
+  emailHref: "mailto:riley@docksideweb.com",
   coffeeLink: "https://www.buymeacoffee.com/test"
 };

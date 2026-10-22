@@ -9,43 +9,112 @@ interface Props {
 
 const { difficulties, showTimer } = Astro.props;
 
-// The picked tab gets an underline in the puzzle's color, sitting on the bar's hairline
 const optionClass =
-  "relative cursor-pointer py-2.5 text-sm font-semibold text-muted transition-colors hover:text-ink aria-pressed:text-puzzle-strong after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-transparent aria-pressed:after:bg-puzzle-strong";
+  "relative cursor-pointer py-2.5 text-sm font-semibold text-muted transition-colors hover:text-ink aria-pressed:text-puzzle-strong";
 ---
 
 <!--
   A tab bar under the puzzle title: difficulty tabs on the left, timer on the right,
   all on one hairline so they read as part of the header rather than floating above the board.
   Each [data-segmented] group dispatches its data-event with { value } when an option is picked.
+  The picked tab gets an underline in the puzzle's color, sitting on the bar's hairline, which slides
+  to the new tab. On a difficulty switch the board fades out, swaps, and fades back in.
 -->
 <div class="flex items-center justify-between gap-4 border-b border-line select-none">
   <!-- Kept even with no tabs, so the timer stays on the right -->
-  <div class="flex items-center gap-4 sm:gap-5" role="group" aria-label="Difficulty" data-segmented data-event="puzzle:difficulty-change">
+  <div class="relative flex items-center gap-4 sm:gap-5" role="group" aria-label="Difficulty" data-segmented data-event="puzzle:difficulty-change">
     {difficulties.map((diff, index) => (
       <button type="button" class={optionClass} data-value={diff.id} aria-pressed={index === 0 ? "true" : "false"}>
         {diff.label}
       </button>
     ))}
+    {difficulties.length > 0 && (
+      <span class="segmented__underline pointer-events-none absolute top-0 left-0 h-0.5 rounded-full bg-puzzle-strong" aria-hidden="true" data-underline></span>
+    )}
   </div>
 
   {showTimer && <Timer />}
 </div>
 
+<style>
+  .segmented__underline.is-ready {
+    transition: translate 0.22s ease, width 0.22s ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .segmented__underline.is-ready {
+      transition: none;
+    }
+  }
+</style>
+
 <script>
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const board = document.querySelector<HTMLElement>("[data-puzzle-board]");
+  const FADE_OUT_MS = 140;
+  const FADE_IN_MS = 220;
+  let switchId = 0;
+
+  const nextPaint = () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+
+  /**
+   * Fades the board out, runs `swap` while it's hidden, then fades the new board in.
+   * Uses `scale`, so it never fights the solve ripple's `translate` on the same element.
+   */
+  async function switchBoard(swap: () => void) {
+    if (!board || reducedMotion.matches) return swap();
+    const id = ++switchId;
+    board.getAnimations().forEach((a) => a.id === "board-switch" && a.cancel());
+
+    const out = board.animate([{ opacity: 1, scale: 1 }, { opacity: 0, scale: 0.98 }], {
+      duration: FADE_OUT_MS,
+      easing: "ease-in",
+      fill: "forwards",
+      id: "board-switch",
+    });
+    await out.finished.catch(() => {});
+    if (id !== switchId) return; // another tab was picked mid-fade; that switch takes over
+    swap();
+    await nextPaint();
+    if (id !== switchId) return;
+    out.cancel();
+    board.animate([{ opacity: 0, scale: 0.98 }, { opacity: 1, scale: 1 }], {
+      duration: FADE_IN_MS,
+      easing: "ease-out",
+      id: "board-switch",
+    });
+  }
+
   document.querySelectorAll<HTMLElement>("[data-segmented]").forEach((group) => {
     const options = Array.from(group.querySelectorAll<HTMLButtonElement>("[data-value]"));
+    const underline = group.querySelector<HTMLElement>("[data-underline]");
+
+    /** Puts the underline under the picked tab, overlapping the bar's hairline. */
+    function placeUnderline() {
+      const picked = options.find((o) => o.getAttribute("aria-pressed") === "true");
+      if (!underline || !picked) return;
+      underline.style.translate = `${picked.offsetLeft}px ${picked.offsetTop + picked.offsetHeight - 1}px`;
+      underline.style.width = `${picked.offsetWidth}px`;
+    }
+
+    // Jump into place first (and again if the tabs resize, e.g. once fonts load), then slide from then on
+    placeUnderline();
+    new ResizeObserver(placeUnderline).observe(group);
+    requestAnimationFrame(() => underline?.classList.add("is-ready"));
 
     options.forEach((option) => {
       option.addEventListener("click", () => {
         if (option.getAttribute("aria-pressed") === "true") return;
 
         options.forEach((o) => o.setAttribute("aria-pressed", String(o === option)));
+        placeUnderline();
 
-        window.dispatchEvent(
-          new CustomEvent(group.dataset.event!, { detail: { value: option.dataset.value } })
-        );
-        window.dispatchEvent(new Event("puzzle:timer-reset"));
+        switchBoard(() => {
+          window.dispatchEvent(
+            new CustomEvent(group.dataset.event!, { detail: { value: option.dataset.value } })
+          );
+          window.dispatchEvent(new Event("puzzle:timer-reset"));
+        });
       });
     });
   });

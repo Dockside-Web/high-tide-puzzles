@@ -1,0 +1,138 @@
+---
+// Picture examples for Bridges' "How to play": little boards drawn like the real one, each marked
+// as allowed or not.
+
+interface Example {
+  ok: boolean;
+  caption: string;
+  cols: number;
+  rows: number;
+  /** [row, col, number] */
+  islands: [number, number, number][];
+  /** [island, island, bridges] using indexes into `islands` */
+  bridges: [number, number, 1 | 2][];
+}
+
+const examples: Example[] = [
+  {
+    ok: true,
+    caption: "Island says 3: three bridges",
+    cols: 3,
+    rows: 3,
+    islands: [[0, 0, 3], [0, 2, 2], [2, 0, 1]],
+    bridges: [[0, 1, 2], [0, 2, 1]],
+  },
+  {
+    ok: true,
+    caption: "Up to two bridges per pair",
+    cols: 3,
+    rows: 3,
+    islands: [[1, 0, 2], [1, 2, 2]],
+    bridges: [[0, 1, 2]],
+  },
+  {
+    ok: false,
+    caption: "Bridges can't cross",
+    cols: 3,
+    rows: 3,
+    islands: [[1, 0, 1], [1, 2, 1], [0, 1, 1], [2, 1, 1]],
+    bridges: [[0, 1, 1], [2, 3, 1]],
+  },
+  {
+    ok: false,
+    caption: "All islands must join up",
+    cols: 3,
+    rows: 3,
+    islands: [[0, 0, 1], [0, 2, 1], [2, 0, 1], [2, 2, 1]],
+    bridges: [[0, 1, 1], [2, 3, 1]],
+  },
+];
+
+const CELL = 30;
+const OFFSET = 3.5; // gap between the two lines of a double bridge
+const center = (n: number) => n * CELL + CELL / 2;
+
+/** The one or two lines drawn for a bridge */
+function bridgeLines({ islands }: Example, [a, b, n]: Example["bridges"][number]) {
+  const [r1, c1] = islands[a];
+  const [r2, c2] = islands[b];
+  const horizontal = r1 === r2;
+  const offsets = n === 1 ? [0] : [-OFFSET, OFFSET];
+  return offsets.map((o) => ({
+    x1: center(c1) + (horizontal ? 0 : o),
+    y1: center(r1) + (horizontal ? o : 0),
+    x2: center(c2) + (horizontal ? 0 : o),
+    y2: center(r2) + (horizontal ? o : 0),
+  }));
+}
+---
+
+<div class="mt-5">
+  <p class="text-sm font-semibold text-ink">Examples</p>
+
+  <ul class="mt-3 grid grid-cols-2 gap-2.5">
+    {examples.map((example) => {
+      const { ok, caption, cols, rows, islands, bridges } = example;
+      return (
+        <li class="flex flex-col items-center gap-2 rounded-xl p-3 ring-1 ring-line">
+          <svg class="h-24 w-auto max-w-full" viewBox={`-3 -3 ${cols * CELL + 6} ${rows * CELL + 6}`} aria-hidden="true">
+            <rect class="frame" x="0" y="0" width={cols * CELL} height={rows * CELL} rx="6" />
+            {bridges.flatMap((bridge) => bridgeLines(example, bridge)).map((l) => <line class="bridge" {...l} />)}
+            {islands.map(([r, c, n]) => (
+              <g transform={`translate(${center(c)} ${center(r)})`}>
+                <circle class="island" r="10" />
+                <text class="number" dy="0.36em">{n}</text>
+              </g>
+            ))}
+          </svg>
+
+          <p class="flex items-start gap-1.5 text-center text-xs leading-snug font-medium text-ink">
+            {ok ? (
+              <svg class="mt-px h-3.5 w-3.5 shrink-0 text-seafoam-strong" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Allowed">
+                <path d="M20 6 9 17l-5-5"></path>
+              </svg>
+            ) : (
+              <svg class="mt-px h-3.5 w-3.5 shrink-0 text-coral-strong" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" role="img" aria-label="Not allowed">
+                <path d="M18 6 6 18M6 6l12 12"></path>
+              </svg>
+            )}
+            {caption}
+          </p>
+        </li>
+      );
+    })}
+  </ul>
+
+  <p class="mt-4 text-xs leading-relaxed text-muted">
+    Tip: start with islands that have only one neighbor, or whose number needs every bridge they can
+    get, like a 4 in a corner. Those bridges are certain.
+  </p>
+</div>
+
+<style>
+  .frame {
+    fill: rgb(var(--surface));
+    stroke: rgb(var(--line));
+    stroke-width: 1;
+  }
+
+  .bridge {
+    stroke: rgb(var(--ink));
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+
+  .island {
+    fill: rgb(var(--surface));
+    stroke: rgb(var(--ink));
+    stroke-width: 1.5;
+  }
+
+  .number {
+    fill: rgb(var(--ink));
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    text-anchor: middle;
+  }
+</style>

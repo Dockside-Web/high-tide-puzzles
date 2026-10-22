@@ -35,6 +35,50 @@ export function dailyRandom(slug: string, difficulty: string, dateKey: string) {
   return seededRandom(`${slug}:${difficulty}:${dateKey}`);
 }
 
+// ---------- Making puzzles ahead ----------
+// Some generators take a noticeable moment (Hard Buoy can take most of a second on a phone), so
+// each day's puzzles are kept once made, and the difficulties not on screen are made ahead of time
+// while the page is idle. Switching tabs then just picks up the finished puzzle.
+
+/** Runs `work` when the browser is idle (or soon, where requestIdleCallback is missing). */
+const whenIdle = (work: () => void) =>
+  "requestIdleCallback" in window ? requestIdleCallback(work, { timeout: 2000 }) : setTimeout(work, 200);
+
+export function dailyPuzzles<D extends string, P>(
+  slug: string,
+  difficulties: D[],
+  make: (random: () => number, difficulty: D) => P
+) {
+  const made = new Map<string, P>();
+  const key = (difficulty: D, dateKey: string) => `${difficulty}:${dateKey}`;
+
+  return {
+    /** True if this puzzle is already made, so getting it is instant. */
+    has: (difficulty: D, dateKey: string) => made.has(key(difficulty, dateKey)),
+
+    /** The puzzle for one difficulty on one day, made now if it isn't ready yet. */
+    get(difficulty: D, dateKey: string) {
+      const k = key(difficulty, dateKey);
+      if (!made.has(k)) {
+        // Only one day is ever needed; forget the rest
+        for (const old of made.keys()) if (!old.endsWith(dateKey)) made.delete(old);
+        made.set(k, make(dailyRandom(slug, difficulty, dateKey), difficulty));
+      }
+      return made.get(k)!;
+    },
+
+    /** Makes the day's other difficulties in the background, one per idle moment. */
+    prepare(dateKey: string) {
+      const next = difficulties.find((d) => !made.has(key(d, dateKey)));
+      if (!next) return;
+      whenIdle(() => {
+        this.get(next, dateKey);
+        this.prepare(dateKey);
+      });
+    },
+  };
+}
+
 // ---------- Saved progress ----------
 // Each day's board is saved in this browser under progress:<slug>:<difficulty>:<date>, so leaving
 // or refreshing picks up where the player was. Storage can be blocked or full, so every call is

@@ -3,8 +3,8 @@ import type { SvgComponent } from "astro/types";
 import type { Difficulty } from "../../puzzles/types";
 
 // The same finish for every puzzle. A puzzle only has to fire `puzzle:solved` on window once the
-// board is solved; this sends ripples across the page behind the puzzle, like a pebble dropped in
-// water under the board, then slides up a card with the time. The Timer stops itself on the same event.
+// board is solved; this splashes the board like a pebble dropped in water at the last move, runs a
+// wave through the puzzle's pieces and on across the page, then slides up a card with the time. The Timer stops itself on the same event.
 // A puzzle that can be lost fires `puzzle:failed` instead (optionally with { message }): the same
 // card, without the celebration.
 // On a puzzle with more than one difficulty, a win suggests the next one not yet finished today
@@ -138,7 +138,7 @@ const { slug, name, icon: Icon, difficulties = [] } = Astro.props;
     "Right on course!",
     "Sea-riously good!",
   ];
-  const CARD_DELAY_MS = 1500;
+  const CARD_DELAY_MS = 1650;
 
   const overlay = document.getElementById("solved-celebration")!;
   const cheer = overlay.querySelector<HTMLElement>("[data-solved-cheer]")!;
@@ -283,17 +283,69 @@ const { slug, name, icon: Icon, difficulties = [] } = Astro.props;
   }
 
   // ---------- Ripple ----------
+  // A puzzle marks the bordered part of its board with data-splash (it dips and glows) and its
+  // pieces with one of PIECES (the wave lights each one up as it passes). Without data-splash, the
+  // whole puzzle is used.
+  const PIECES = "[data-cell], [data-tile], [data-island]";
+  const IMPACT_MS = 130; // the board's dip before the splash; everything else starts at its lowest point
+
+  /** Where the last tap or click landed, so the ripple can start from the move that solved it */
+  let lastPoint: { x: number; y: number } | null = null;
+  let lastWasKey = false;
+  // Capture phase, so it's noted before the puzzle handles the same event and fires puzzle:solved
+  window.addEventListener(
+    "pointerup",
+    (e) => {
+      lastPoint = { x: e.clientX, y: e.clientY };
+      lastWasKey = false;
+    },
+    true
+  );
+  window.addEventListener("keydown", () => (lastWasKey = true), true);
+
+  /** The last move if it was on the board (a tap there, or the focused piece by keyboard), else the board's middle. */
+  function rippleOrigin(splash: HTMLElement) {
+    const r = splash.getBoundingClientRect();
+    const focused = document.activeElement;
+    if (lastWasKey && focused && splash.contains(focused)) {
+      const f = focused.getBoundingClientRect();
+      return { x: f.left + f.width / 2, y: f.top + f.height / 2 };
+    }
+    if (!lastWasKey && lastPoint) {
+      const { x, y } = lastPoint;
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return lastPoint;
+    }
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  }
+
   /**
-   * Water ripples spreading out across the whole page from the middle of the screen, then settling.
-   * Drawn behind everything, so they pass under the puzzle and show around it.
+   * Like a pebble dropped on the board: the board dips and springs back with a glow, a wave runs
+   * out through the puzzle's pieces from the last move, and rings in the puzzle's color roll on across
+   * the whole page, fast at first and slowing as they spread. The rings are drawn behind everything,
+   * so they pass under the puzzle and show around it.
    */
   function ripple(board: HTMLElement) {
     const width = window.innerWidth;
     const height = window.innerHeight;
-    const originX = width / 2;
-    const originY = height / 2;
-    // The whole puzzle (board, and Sea Glass's tile bank under it), for where the waves start
-    const rect = (board.firstElementChild ?? board).getBoundingClientRect();
+    const splash = board.querySelector<HTMLElement>("[data-splash]") ?? (board.firstElementChild as HTMLElement | null) ?? board;
+    const { x: originX, y: originY } = rippleOrigin(splash);
+    const accent = getComputedStyle(board).getPropertyValue("--puzzle-strong").trim(); // "r g b"
+
+    // Splash-down: dip, overshoot, settle
+    splash.animate(
+      [
+        { scale: 1, easing: "ease-in" },
+        { scale: 0.965, offset: 0.2, easing: "ease-out" },
+        { scale: 1.025, offset: 0.5, easing: "ease-in-out" },
+        { scale: 0.995, offset: 0.75, easing: "ease-in-out" },
+        { scale: 1 },
+      ],
+      { duration: 650 }
+    );
+    splash.animate(
+      [{ boxShadow: `0 0 0 0 rgb(${accent} / 0.55)` }, { boxShadow: `0 0 0 18px rgb(${accent} / 0)` }],
+      { duration: 700, delay: IMPACT_MS, easing: "ease-out" }
+    );
 
     const canvas = document.createElement("canvas");
     canvas.setAttribute("aria-hidden", "true");
@@ -307,40 +359,59 @@ const { slug, name, icon: Icon, difficulties = [] } = Astro.props;
     const ctx = canvas.getContext("2d")!;
     ctx.scale(dpr, dpr);
 
-    // Each wave is a soft shadow (its trough) just inside a light highlight (its crest)
+    // Each wave is a soft shadow (its trough) just inside a crest in the puzzle's color
     const dark = document.documentElement.classList.contains("dark");
     const shadow = dark ? "0 0 0" : "11 94 117";
-    const light = dark ? "190 225 240" : "255 255 255";
-    const shadowStrength = dark ? 0.7 : 0.3;
-    const lightStrength = dark ? 0.45 : 1;
+    const shadowStrength = dark ? 0.8 : 0.35;
+    const crestStrength = dark ? 0.75 : 0.6;
 
     // Far enough to pass the farthest corner of the screen
     const reach = Math.max(
       ...[[0, 0], [width, 0], [0, height], [width, height]].map(([x, y]) => Math.hypot(x - originX, y - originY))
     ) + 80;
-    // Waves under the puzzle can't be seen, so they start about at its edge
-    const start = Math.min(rect.width, rect.height) / 2;
 
-    const WAVES = 6;
-    const WAVE_GAP_MS = 170;
-    const WAVE_MS = 2800; // time for one wave to cross the screen
-    const started = performance.now();
+    const WAVES = 4;
+    const WAVE_GAP_MS = 220;
+    const WAVE_MS = 2400; // time for one wave to cross the screen
+    const started = performance.now() + IMPACT_MS;
+    // Waves burst out and slow as they spread: the share of `reach` covered by time share t
+    const spread = (t: number) => 1 - (1 - t) * (1 - t);
+    /** When the first wave reaches a point this far from the origin (ms after the impact) */
+    const arrive = (distance: number) => WAVE_MS * (1 - Math.sqrt(1 - Math.min(distance / reach, 1)));
+    const distanceTo = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      return Math.hypot(r.left + r.width / 2 - originX, r.top + r.height / 2 - originY);
+    };
+
+    // The wave runs through the puzzle first: each piece lifts and glows as it arrives
+    splash.querySelectorAll<HTMLElement | SVGElement>(PIECES).forEach((piece) => {
+      if (piece instanceof SVGElement) {
+        piece.style.transformBox = "fill-box";
+        piece.style.transformOrigin = "center";
+      }
+      const calm = `drop-shadow(0 0 0 rgb(${accent} / 0)) brightness(1)`;
+      piece.animate(
+        [
+          { scale: 1, filter: calm },
+          { scale: 1.14, filter: `drop-shadow(0 0 8px rgb(${accent} / 0.9)) brightness(1.15)`, offset: 0.35 },
+          { scale: 1, filter: calm },
+        ],
+        { duration: 480, delay: IMPACT_MS + arrive(distanceTo(piece)), easing: "ease-out" }
+      );
+    });
 
     // The page rides the swell: the header and each block of the puzzle page (marked data-float)
     // lift and settle when the first wave reaches them. Uses `translate`, so it never fights a
     // transform the element already has.
     const BOB_MS = 1400;
-    const BOB_PX = 7;
+    const BOB_PX = 10;
     const bob = Array.from({ length: 29 }, (_, k) => {
       const t = k / 28;
       const y = -BOB_PX * Math.exp(-3.2 * t) * Math.sin(2 * Math.PI * 2.5 * t);
       return { translate: `0 ${y.toFixed(2)}px` };
     });
     document.querySelectorAll<HTMLElement>("header, [data-float]").forEach((el) => {
-      const r = el.getBoundingClientRect();
-      const distance = Math.hypot(r.left + r.width / 2 - originX, r.top + r.height / 2 - originY);
-      const arrive = (Math.max(0, distance - start) / (reach - start)) * WAVE_MS;
-      el.animate(bob, { duration: BOB_MS, delay: arrive });
+      el.animate(bob, { duration: BOB_MS, delay: IMPACT_MS + arrive(distanceTo(el)) });
     });
 
     function frame(now: number) {
@@ -350,19 +421,19 @@ const { slug, name, icon: Icon, difficulties = [] } = Astro.props;
       for (let i = 0; i < WAVES; i++) {
         const t = (elapsed - i * WAVE_GAP_MS) / WAVE_MS;
         if (t <= 0 || t >= 1) continue;
-        // Steady speed like real water; waves widen and weaken as they travel, and each one after
-        // the first is a little weaker, like a ripple settling
-        const radius = start + t * (reach - start);
-        const half = 10 + 30 * t;
-        const strength = Math.pow(1 - t, 1.6) * (1 - i / (WAVES + 1));
+        // Waves widen and weaken as they travel, and each one after the first is a little weaker,
+        // like a ripple settling
+        const radius = spread(t) * reach;
+        const half = 14 + 34 * t;
+        const strength = Math.pow(1 - t, 1.4) * (1 - i / (WAVES + 1));
         const inner = Math.max(radius - half, 0);
 
         const gradient = ctx.createRadialGradient(originX, originY, inner, originX, originY, radius + half);
         gradient.addColorStop(0, `rgb(${shadow} / 0)`);
         gradient.addColorStop(0.3, `rgb(${shadow} / ${shadowStrength * strength})`);
         gradient.addColorStop(0.55, `rgb(${shadow} / 0)`);
-        gradient.addColorStop(0.72, `rgb(${light} / ${lightStrength * strength})`);
-        gradient.addColorStop(1, `rgb(${light} / 0)`);
+        gradient.addColorStop(0.72, `rgb(${accent} / ${crestStrength * strength})`);
+        gradient.addColorStop(1, `rgb(${accent} / 0)`);
 
         ctx.beginPath();
         ctx.arc(originX, originY, radius + half, 0, Math.PI * 2);

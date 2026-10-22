@@ -6,106 +6,50 @@ interface Props {
   date?: string;
 }
 
-// ---------- Dummy puzzle (frontend only) ----------
-// Islands sit on a SIZE x SIZE grid. Each island's number is worked out from the solution
-// below, so the dummy puzzle is always solvable.
-const SIZE = 9;
-
-const islandCoords: [row: number, col: number][] = [
-  [0, 0], [0, 3], [0, 6], [0, 8],
-  [2, 0], [2, 2], [2, 5], [2, 8],
-  [4, 2], [4, 4], [4, 7],
-  [6, 0], [6, 4], [6, 6], [6, 8],
-  [8, 0], [8, 3], [8, 6], [8, 8],
-];
-
-// Solution as [islandA, islandB, bridges] using indexes into islandCoords
-const solution: [number, number, 1 | 2][] = [
-  [0, 1, 2], [1, 2, 1], [2, 3, 2], [0, 4, 1], [3, 7, 1],
-  [4, 5, 1], [5, 8, 2], [6, 7, 2], [8, 9, 1], [9, 10, 2],
-  [9, 12, 1], [7, 14, 1], [4, 11, 2], [11, 12, 1], [12, 13, 2],
-  [13, 14, 1], [11, 15, 1], [15, 16, 2], [16, 17, 1], [13, 17, 2],
-  [17, 18, 1], [14, 18, 2],
-];
-
-const islands = islandCoords.map(([r, c], id) => ({
-  id,
-  r,
-  c,
-  target: solution.reduce((sum, [a, b, n]) => sum + (a === id || b === id ? n : 0), 0),
-}));
-
-// Every pair of islands that could be bridged: nearest neighbour to the right and below
-const pairs: { id: number; a: number; b: number; horizontal: boolean }[] = [];
-for (const island of islands) {
-  const right = islands
-    .filter((o) => o.r === island.r && o.c > island.c)
-    .sort((x, y) => x.c - y.c)[0];
-  const below = islands
-    .filter((o) => o.c === island.c && o.r > island.r)
-    .sort((x, y) => x.r - y.r)[0];
-  if (right) pairs.push({ id: pairs.length, a: island.id, b: right.id, horizontal: true });
-  if (below) pairs.push({ id: pairs.length, a: island.id, b: below.id, horizontal: false });
-}
-
-// SVG layout: each grid cell is 100 units
-const CELL = 100;
-const center = (n: number) => n * CELL + CELL / 2;
-const OFFSET = 11; // gap between the two lines of a double bridge
+const { puzzle } = Astro.props;
 ---
 
 <!--
+  The day's islands are made in the browser from the player's local date (see generate.ts).
+  Easy is a 7x7 board, Hard 9x9; the board's width follows its size so islands stay the same size.
   Interaction:
-  - Tap an island to select it, then tap another island in the same row/column to add a bridge.
+  - Tap an island, then another island in the same row or column, to add a bridge between them.
   - Or tap the gap between two islands. Each tap cycles 0 -> 1 -> 2 -> 0 bridges.
-  - Bridges can't cross. Islands grey out when they have the right number, turn red when over.
+  - A bridge that would cross another isn't built; the one in the way flashes instead.
+  - Islands fade when they have the right number of bridges, turn coral when over.
+  Keyboard: arrow keys move between islands, Shift+arrow cycles the bridge that way, Space or
+  Enter picks an island the same as a tap.
+  Solved when the bridges are exactly the day's answer (the numbers allow only one).
 -->
 <div
   class="bridges"
   data-bridges-root
-  data-islands={JSON.stringify(islands)}
-  data-pairs={JSON.stringify(pairs)}
+  data-splash
+  data-slug={puzzle.slug}
+  data-difficulties={(puzzle.difficulties ?? []).map((d) => d.id).join(" ")}
+  data-status="loading"
 >
-  <svg viewBox={`0 0 ${SIZE * CELL} ${SIZE * CELL}`} class="bridges__svg" role="img" aria-label="Bridges puzzle board">
+  <!-- Shown over the board while the day's puzzle is being made -->
+  <p class="bridges__loading" aria-live="polite"><span>Shuffling today's board…</span></p>
+
+  <svg class="bridges__svg" role="group" aria-label="Bridges board" data-svg>
     <!-- Faint grid points so rows and columns are easy to follow -->
-    <g class="bridges__grid">
-      {Array.from({ length: SIZE * SIZE }, (_, i) => (
-        <circle cx={center(i % SIZE)} cy={center(Math.floor(i / SIZE))} r="4" />
-      ))}
-    </g>
-
-    <!-- Bridges (and invisible tap targets for each gap) -->
-    {pairs.map((pair) => {
-      const a = islands[pair.a];
-      const b = islands[pair.b];
-      const x1 = center(a.c), y1 = center(a.r), x2 = center(b.c), y2 = center(b.r);
-      const dx = pair.horizontal ? 0 : OFFSET;
-      const dy = pair.horizontal ? OFFSET : 0;
-      return (
-        <g class="bridges__pair" data-pair={pair.id} data-count="0">
-          <line class="bridges__hint" x1={x1} y1={y1} x2={x2} y2={y2} />
-          <line class="bridges__line bridges__line--single" x1={x1} y1={y1} x2={x2} y2={y2} />
-          <line class="bridges__line bridges__line--double" x1={x1 - dx} y1={y1 - dy} x2={x2 - dx} y2={y2 - dy} />
-          <line class="bridges__line bridges__line--double" x1={x1 + dx} y1={y1 + dy} x2={x2 + dx} y2={y2 + dy} />
-          <line class="bridges__hit" x1={x1} y1={y1} x2={x2} y2={y2} />
-        </g>
-      );
-    })}
-
-    {islands.map((island) => (
-      <g class="bridges__island" data-island={island.id} transform={`translate(${center(island.c)} ${center(island.r)})`}>
-        <circle r="36" />
-        <text dy="0.36em">{island.target}</text>
-      </g>
-    ))}
+    <g class="bridges__grid" data-grid></g>
+    <!-- Empty gaps sit under built bridges, so tapping a bridge where an empty gap crosses it
+         always changes the bridge (islands stay above both) -->
+    <g data-gaps></g>
+    <g data-built></g>
+    <g data-islands></g>
   </svg>
 </div>
 
 <style>
   .bridges {
-    /* Square board that fits the screen width and height so the toolbar stays visible */
-    width: min(100%, calc(100dvh - 17.5rem), 34rem);
-    min-width: 17rem;
+    --size: 9;
+    position: relative;
+    /* Square board sized to its grid, shrinking to fit the screen so the toolbar stays visible */
+    width: min(100%, calc(100dvh - 17.5rem), calc(var(--size) * 3.8rem));
+    min-width: 15rem;
     aspect-ratio: 1;
     box-sizing: border-box;
     padding: 2.5%;
@@ -123,24 +67,53 @@ const OFFSET = 11; // gap between the two lines of a double bridge
     overflow: visible;
   }
 
-  .bridges__grid circle {
+  .bridges__loading {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: inherit;
+    background: rgb(var(--surface));
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: rgb(var(--muted));
+  }
+
+  /* Only the words pulse; the cover stays solid so the last board never shows through */
+  .bridges__loading span {
+    animation: bridges-pulse 1.2s ease-in-out infinite;
+  }
+
+  .bridges[data-status="loading"] .bridges__loading {
+    display: flex;
+  }
+
+  @keyframes bridges-pulse {
+    50% { opacity: 0.45; }
+  }
+
+  /* Drawn by the script, so styles reach them with :global */
+  .bridges :global(.bridges__grid circle) {
     fill: rgb(var(--ink) / 0.12);
   }
 
-  .bridges__line {
+  .bridges :global(.bridges__line) {
     stroke: rgb(var(--ink));
     stroke-width: 6;
     stroke-linecap: round;
     display: none;
+    transition: stroke 0.15s ease;
   }
 
-  .bridges__pair[data-count="1"] .bridges__line--single,
-  .bridges__pair[data-count="2"] .bridges__line--double {
+  .bridges :global(.bridges__pair[data-count="1"] .bridges__line--single),
+  .bridges :global(.bridges__pair[data-count="2"] .bridges__line--double) {
     display: inline;
   }
 
   /* Faint preview of an empty gap on hover */
-  .bridges__hint {
+  .bridges :global(.bridges__hint) {
     stroke: rgb(var(--puzzle) / 0.35);
     stroke-width: 6;
     stroke-dasharray: 2 14;
@@ -149,33 +122,39 @@ const OFFSET = 11; // gap between the two lines of a double bridge
     transition: opacity 0.12s ease;
   }
 
-  .bridges__pair[data-count="0"]:hover .bridges__hint {
+  .bridges:not(.is-locked) :global(.bridges__pair[data-count="0"]:hover .bridges__hint) {
     opacity: 1;
   }
 
-  .bridges__pair:hover .bridges__line {
+  .bridges:not(.is-locked) :global(.bridges__pair:hover .bridges__line) {
     stroke: rgb(var(--puzzle-strong));
   }
 
-  .bridges__hit {
+  .bridges :global(.bridges__hit) {
     stroke: transparent;
     stroke-width: 44;
     pointer-events: stroke;
     cursor: pointer;
   }
 
-  .bridges__island {
+  .bridges :global(.bridges__island) {
     cursor: pointer;
+    outline: none;
   }
 
-  .bridges__island circle {
+  .bridges.is-locked :global(.bridges__hit),
+  .bridges.is-locked :global(.bridges__island) {
+    cursor: default;
+  }
+
+  .bridges :global(.bridges__island circle) {
     fill: rgb(var(--surface));
     stroke: rgb(var(--ink));
     stroke-width: 4;
     transition: fill 0.15s ease, stroke 0.15s ease;
   }
 
-  .bridges__island text {
+  .bridges :global(.bridges__island text) {
     fill: rgb(var(--ink));
     font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
     font-size: 40px;
@@ -185,141 +164,441 @@ const OFFSET = 11; // gap between the two lines of a double bridge
     transition: fill 0.15s ease;
   }
 
-  .bridges__island:hover circle {
+  .bridges:not(.is-locked) :global(.bridges__island:hover circle) {
     stroke: rgb(var(--puzzle-strong));
   }
 
-  .bridges__island.is-done circle {
+  .bridges :global(.bridges__island.is-done circle) {
     fill: rgb(var(--band));
     stroke: rgb(var(--ink) / 0.25);
   }
 
-  .bridges__island.is-done text {
+  .bridges :global(.bridges__island.is-done text) {
     fill: rgb(var(--ink) / 0.35);
   }
 
-  .bridges__island.is-over circle {
+  .bridges :global(.bridges__island.is-over circle) {
     fill: color-mix(in srgb, rgb(var(--coral)) 18%, rgb(var(--surface)));
     stroke: rgb(var(--coral-strong));
   }
 
-  .bridges__island.is-over text {
+  .bridges :global(.bridges__island.is-over text) {
     fill: rgb(var(--coral-strong));
   }
 
-  .bridges__island.is-selected circle {
+  .bridges :global(.bridges__island.is-selected circle),
+  .bridges :global(.bridges__island:focus-visible circle) {
     fill: color-mix(in srgb, rgb(var(--puzzle)) 22%, rgb(var(--surface)));
     stroke: rgb(var(--puzzle-strong));
     stroke-width: 6;
   }
+
+  /* A bridge changed by Hint pulses in the puzzle's color */
+  .bridges :global(.bridges__pair.is-hinted .bridges__line),
+  .bridges :global(.bridges__pair.is-hinted .bridges__hint) {
+    animation: bridges-hint 0.4s ease-in-out 2;
+  }
+
+  @keyframes bridges-hint {
+    50% {
+      stroke: rgb(var(--puzzle-strong));
+      opacity: 1;
+    }
+  }
+
+  /* The bridge in the way of a crossing one flashes coral */
+  .bridges :global(.bridges__pair.is-blocking .bridges__line) {
+    animation: bridges-blocking 0.3s ease-in-out 2;
+  }
+
+  @keyframes bridges-blocking {
+    50% { stroke: rgb(var(--coral-strong)); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bridges__loading span,
+    .bridges :global(.bridges__pair.is-hinted .bridges__line),
+    .bridges :global(.bridges__pair.is-hinted .bridges__hint),
+    .bridges :global(.bridges__pair.is-blocking .bridges__line) {
+      animation: none;
+    }
+  }
 </style>
 
 <script>
-  interface Island { id: number; r: number; c: number; target: number }
-  interface Pair { id: number; a: number; b: number; horizontal: boolean }
+  import { dailyPuzzles, forgetOldProgress, loadProgress, localDateKey, saveProgress } from "../daily";
+  import { crossings, generateBridges, type BridgesDifficulty, type BridgesPuzzle } from "./generate";
+
+  type Status = "loading" | "playing" | "solved" | "revealed";
+
+  /** What's saved for one day at one difficulty */
+  interface SavedGame {
+    counts: number[];
+    seconds: number;
+    status: "playing" | "solved" | "revealed";
+  }
+
+  // SVG layout: each grid cell is 100 units
+  const CELL = 100;
+  const OFFSET = 11; // gap between the two lines of a double bridge
+  const center = (n: number) => n * CELL + CELL / 2;
+  const plural = (n: number) => `${n} bridge${n === 1 ? "" : "s"}`;
+
+  /** Resolves once the browser has drawn the current state (so "Shuffling…" shows before the heavy work). */
+  const nextPaint = () => new Promise<void>((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
+
+  /** Restarts a one-off CSS animation class on an element. */
+  function flash(el: Element, className: string) {
+    el.classList.remove(className);
+    void (el as SVGGElement).getBoundingClientRect();
+    el.classList.add(className);
+    el.addEventListener("animationend", () => el.classList.remove(className), { once: true });
+  }
 
   function initBridges(root: HTMLElement) {
-    const islands: Island[] = JSON.parse(root.dataset.islands!);
-    const pairs: Pair[] = JSON.parse(root.dataset.pairs!);
-    const pairEls = Array.from(root.querySelectorAll<SVGGElement>("[data-pair]"));
-    const islandEls = Array.from(root.querySelectorAll<SVGGElement>("[data-island]"));
+    const slug = root.dataset.slug!;
+    const puzzles = dailyPuzzles(slug, root.dataset.difficulties!.split(" ") as BridgesDifficulty[], generateBridges);
+    const svg = root.querySelector<SVGSVGElement>("[data-svg]")!;
+    const gridLayer = svg.querySelector<SVGGElement>("[data-grid]")!;
+    const gapLayer = svg.querySelector<SVGGElement>("[data-gaps]")!;
+    const builtLayer = svg.querySelector<SVGGElement>("[data-built]")!;
+    const islandLayer = svg.querySelector<SVGGElement>("[data-islands]")!;
 
-    let counts: number[] = pairs.map(() => 0);
-    let history: number[][] = [];
+    let dateKey = localDateKey();
+    let difficulty: BridgesDifficulty = "easy"; // the first difficulty tab starts selected
+    let puzzle: BridgesPuzzle;
+    let cross: number[][] = [];
+    let pairEls: SVGGElement[] = [];
+    let islandEls: SVGGElement[] = [];
+    let counts: number[] = [];
+    let undoStack: number[][] = [];
+    let status: Status = "loading";
+    let seconds = 0;
     let selected: number | null = null;
+    let focusIndex = 0;
+    let loadId = 0;
 
-    /** Do two bridges cross? (one horizontal, one vertical, meeting strictly between their islands) */
-    function crosses(p: Pair, q: Pair) {
-      if (p.horizontal === q.horizontal) return false;
-      const [h, v] = p.horizontal ? [p, q] : [q, p];
-      const row = islands[h.a].r;
-      const col = islands[v.a].c;
-      const [c1, c2] = [islands[h.a].c, islands[h.b].c];
-      const [r1, r2] = [islands[v.a].r, islands[v.b].r];
-      return row > r1 && row < r2 && col > c1 && col < c2;
+    function save() {
+      if (status === "loading") return;
+      saveProgress(slug, difficulty, dateKey, { counts, seconds, status } satisfies SavedGame);
     }
 
+    function setStatus(next: Status) {
+      status = next;
+      root.dataset.status = next;
+      root.classList.toggle("is-locked", next !== "playing");
+    }
+
+    // ---------- Drawing ----------
+    /** Grid points, gaps and islands for the day's puzzle (they don't change while playing). */
+    function drawPuzzle() {
+      const { size, islands, pairs } = puzzle;
+      root.style.setProperty("--size", String(size));
+      svg.setAttribute("viewBox", `0 0 ${size * CELL} ${size * CELL}`);
+
+      gridLayer.innerHTML = Array.from(
+        { length: size * size },
+        (_, i) => `<circle cx="${center(i % size)}" cy="${center(Math.floor(i / size))}" r="4" />`
+      ).join("");
+
+      gapLayer.innerHTML = pairs
+        .map((p, k) => {
+          const a = islands[p.a];
+          const b = islands[p.b];
+          const [x1, y1, x2, y2] = [center(a.c), center(a.r), center(b.c), center(b.r)];
+          const dx = p.horizontal ? 0 : OFFSET;
+          const dy = p.horizontal ? OFFSET : 0;
+          const line = (cls: string, ox = 0, oy = 0) =>
+            `<line class="${cls}" x1="${x1 + ox}" y1="${y1 + oy}" x2="${x2 + ox}" y2="${y2 + oy}" />`;
+          return `<g class="bridges__pair" data-pair="${k}" data-count="0">
+            ${line("bridges__hint")}
+            ${line("bridges__line bridges__line--single")}
+            ${line("bridges__line bridges__line--double", -dx, -dy)}
+            ${line("bridges__line bridges__line--double", dx, dy)}
+            ${line("bridges__hit")}
+          </g>`;
+        })
+        .join("");
+      builtLayer.innerHTML = "";
+
+      // The outer group only places the island, so the island itself can be scaled (the solve
+      // ripple) without moving it
+      islandLayer.innerHTML = islands
+        .map(
+          (island, i) =>
+            `<g transform="translate(${center(island.c)} ${center(island.r)})">
+              <g class="bridges__island" data-island="${i}" role="button" tabindex="-1">
+                <circle r="36" />
+                <text dy="0.36em">${island.target}</text>
+              </g>
+            </g>`
+        )
+        .join("");
+
+      pairEls = Array.from(gapLayer.querySelectorAll<SVGGElement>("[data-pair]"));
+      islandEls = Array.from(islandLayer.querySelectorAll<SVGGElement>("[data-island]"));
+      cross = crossings(islands, pairs);
+      focusIndex = 0;
+      islandEls[0].tabIndex = 0;
+    }
+
+    /** Bridges, and how each island is doing. */
     function render() {
-      pairEls.forEach((el, i) => {
-        el.dataset.count = String(counts[i]);
-        // Built bridges go on top of empty gaps, so tapping a bridge where an
-        // empty gap crosses it always changes the bridge (islands stay above both)
-        if (counts[i] > 0) el.parentNode?.insertBefore(el, islandEls[0]);
+      const { islands, pairs } = puzzle;
+      const totals = islands.map(() => 0);
+      pairEls.forEach((el, k) => {
+        el.dataset.count = String(counts[k]);
+        const layer = counts[k] ? builtLayer : gapLayer;
+        if (el.parentNode !== layer) layer.appendChild(el);
+        totals[pairs[k].a] += counts[k];
+        totals[pairs[k].b] += counts[k];
       });
 
-      islandEls.forEach((el, id) => {
-        const total = pairs.reduce((sum, p, i) => sum + (p.a === id || p.b === id ? counts[i] : 0), 0);
-        const target = islands[id].target;
-        el.classList.toggle("is-done", total === target);
-        el.classList.toggle("is-over", total > target);
-        el.classList.toggle("is-selected", selected === id);
+      islandEls.forEach((el, i) => {
+        const { r, c, target } = islands[i];
+        el.classList.toggle("is-done", totals[i] === target);
+        el.classList.toggle("is-over", totals[i] > target);
+        el.classList.toggle("is-selected", selected === i);
+        el.setAttribute(
+          "aria-label",
+          `Island ${target}, row ${r + 1}, column ${c + 1}: ${plural(totals[i])} of ${target}${selected === i ? ", selected" : ""}`
+        );
       });
     }
 
-    /** Cycle a gap 0 -> 1 -> 2 -> 0. Adding is blocked if it would cross an existing bridge. */
-    function cycle(pairId: number) {
-      const next = (counts[pairId] + 1) % 3;
-      if (next > 0 && counts[pairId] === 0) {
-        const blocked = pairs.some((q, i) => counts[i] > 0 && crosses(pairs[pairId], q));
-        if (blocked) return;
-      }
-      history.push(counts.slice());
-      counts[pairId] = next;
-    }
-
-    // Tap the gap between two islands
-    pairEls.forEach((el, i) => {
-      el.querySelector(".bridges__hit")?.addEventListener("click", () => {
-        selected = null;
-        cycle(i);
-        render();
-      });
-    });
-
-    // Tap an island, then another island in the same row/column
-    islandEls.forEach((el, id) => {
-      el.addEventListener("click", () => {
-        if (selected === null || selected === id) {
-          selected = selected === id ? null : id;
-        } else {
-          const pairId = pairs.findIndex(
-            (p) => (p.a === selected && p.b === id) || (p.b === selected && p.a === id)
-          );
-          if (pairId === -1) {
-            selected = id; // not a neighbour in line: select the new island instead
-          } else {
-            cycle(pairId);
-            selected = null;
-          }
-        }
-        render();
-      });
-    });
-
-    window.addEventListener("puzzle:undo", () => {
-      const previous = history.pop();
-      if (!previous) return;
-      counts = previous;
-      selected = null;
+    // ---------- Changing bridges ----------
+    /** After any change: redraw, catch the moment it's solved, and save. */
+    function changed() {
       render();
+      if (status === "playing" && counts.every((n, k) => n === puzzle.solution[k])) {
+        selected = null;
+        setStatus("solved");
+        render();
+        window.dispatchEvent(new Event("puzzle:solved"));
+      }
+      save();
+    }
+
+    /** One undoable change to a single pair. */
+    function setPair(k: number, n: number) {
+      if (status !== "playing" || counts[k] === n) return;
+      undoStack.push([...counts]);
+      counts[k] = n;
+      changed();
+    }
+
+    /** Cycle a gap 0 -> 1 -> 2 -> 0. A new bridge that would cross one already built isn't added. */
+    function cycle(k: number) {
+      if (counts[k] === 0) {
+        const blocking = cross[k].filter((q) => counts[q] > 0);
+        if (blocking.length) {
+          blocking.forEach((q) => flash(pairEls[q], "is-blocking"));
+          return;
+        }
+      }
+      setPair(k, (counts[k] + 1) % 3);
+    }
+
+    /** The pair joining two islands, or -1 if they aren't neighbors in a line. */
+    const pairBetween = (x: number, y: number) =>
+      puzzle.pairs.findIndex((p) => (p.a === x && p.b === y) || (p.a === y && p.b === x));
+
+    /** Tap an island, then another in the same row or column, to cycle the bridge between them. */
+    function pickIsland(id: number) {
+      if (selected === null || selected === id) {
+        selected = selected === id ? null : id;
+      } else {
+        const k = pairBetween(selected, id);
+        if (k === -1) {
+          selected = id; // not a neighbor in line: pick the new island instead
+        } else {
+          selected = null;
+          cycle(k);
+        }
+      }
+      render();
+    }
+
+    svg.addEventListener("click", (e) => {
+      if (status !== "playing") return;
+      const target = e.target as Element;
+      const islandEl = target.closest<SVGGElement>("[data-island]");
+      if (islandEl) {
+        const id = Number(islandEl.dataset.island);
+        setFocus(id, false);
+        pickIsland(id);
+        return;
+      }
+      const pairEl = target.closest<SVGGElement>("[data-pair]");
+      if (pairEl) {
+        selected = null;
+        cycle(Number(pairEl.dataset.pair));
+        render();
+      }
+    });
+
+    // ---------- Keyboard ----------
+    /** Only one island is in the tab order at a time; the arrow keys move it. */
+    function setFocus(id: number, moveFocus: boolean) {
+      islandEls[focusIndex].tabIndex = -1;
+      focusIndex = id;
+      islandEls[id].tabIndex = 0;
+      if (moveFocus) islandEls[id].focus();
+    }
+
+    const ARROWS: Record<string, [number, number]> = {
+      ArrowUp: [-1, 0],
+      ArrowDown: [1, 0],
+      ArrowLeft: [0, -1],
+      ArrowRight: [0, 1],
+    };
+
+    /** The pair leading from an island in a direction, or -1. */
+    function pairToward(id: number, [dr, dc]: [number, number]) {
+      return puzzle.pairs.findIndex(
+        (p) => p.horizontal === (dc !== 0) && (dr + dc > 0 ? p.a === id : p.b === id)
+      );
+    }
+
+    /** The island to move to: the neighbor in line if there is one, else the closest one that way. */
+    function islandToward(id: number, [dr, dc]: [number, number]) {
+      const k = pairToward(id, [dr, dc]);
+      if (k !== -1) return puzzle.pairs[k].a === id ? puzzle.pairs[k].b : puzzle.pairs[k].a;
+      const from = puzzle.islands[id];
+      let best = -1;
+      let bestScore = Infinity;
+      puzzle.islands.forEach((o, i) => {
+        const along = (o.r - from.r) * dr + (o.c - from.c) * dc;
+        const across = Math.abs((o.r - from.r) * dc) + Math.abs((o.c - from.c) * dr);
+        if (along <= 0 || along + 2 * across >= bestScore) return;
+        best = i;
+        bestScore = along + 2 * across;
+      });
+      return best === -1 ? id : best;
+    }
+
+    root.addEventListener("keydown", (e) => {
+      const el = (e.target as Element).closest<SVGGElement>("[data-island]");
+      if (!el) return;
+      const id = Number(el.dataset.island);
+      const arrow = ARROWS[e.key];
+
+      if (arrow && e.shiftKey) {
+        const k = pairToward(id, arrow);
+        if (k !== -1 && status === "playing") {
+          selected = null;
+          cycle(k);
+          render();
+        }
+      } else if (arrow) setFocus(islandToward(id, arrow), true);
+      else if ((e.key === " " || e.key === "Enter") && status === "playing") pickIsland(id);
+      else if (e.key === "Escape" && selected !== null) {
+        selected = null;
+        render();
+      } else return;
+      e.preventDefault();
+    });
+
+    // ---------- Toolbar ----------
+    window.addEventListener("puzzle:undo", () => {
+      if (status !== "playing" || !undoStack.length) return;
+      counts = undoStack.pop()!;
+      selected = null;
+      changed();
     });
 
     window.addEventListener("puzzle:reset", () => {
-      if (counts.every((n) => n === 0)) return;
-      history.push(counts.slice());
-      counts = pairs.map(() => 0);
+      if (status === "loading") return;
+      // Starting over after solving also restarts the stopped timer
+      if (status !== "playing") {
+        seconds = 0;
+        window.dispatchEvent(new Event("puzzle:timer-reset"));
+      }
+      setStatus("playing");
+      counts = puzzle.pairs.map(() => 0);
+      undoStack = [];
       selected = null;
-      render();
+      changed();
     });
 
-    window.addEventListener("puzzle:difficulty-change", () => {
-      counts = pairs.map(() => 0);
-      history = [];
+    // Fixes the first wrong bridge (more than the answer has), otherwise builds a missing one
+    window.addEventListener("puzzle:hint", () => {
+      if (status !== "playing") return;
+      let k = counts.findIndex((n, i) => n > puzzle.solution[i]);
+      if (k === -1) k = counts.findIndex((n, i) => n < puzzle.solution[i]);
+      if (k === -1) return;
       selected = null;
-      render();
+      setPair(k, puzzle.solution[k]);
+      flash(pairEls[k], "is-hinted");
     });
 
-    render();
+    // Every bridge in place, then the board locks (no celebration)
+    window.addEventListener("puzzle:reveal", () => {
+      if (status !== "playing") return;
+      setStatus("revealed");
+      counts = [...puzzle.solution];
+      undoStack = [];
+      selected = null;
+      changed();
+      window.dispatchEvent(new Event("puzzle:revealed"));
+    });
+
+    // ---------- Loading a day ----------
+    /**
+     * Gets the day's puzzle (showing "Shuffling…" if it still has to be made) and lays out the saved
+     * bridges if there are any. Then makes the other difficulties in the background.
+     */
+    async function load() {
+      const id = ++loadId;
+      if (!puzzles.has(difficulty, dateKey)) {
+        setStatus("loading");
+        await nextPaint();
+        if (id !== loadId) return; // switched difficulty (or day) again in the meantime
+      }
+
+      puzzle = puzzles.get(difficulty, dateKey);
+      drawPuzzle();
+      undoStack = [];
+      selected = null;
+
+      const saved = loadProgress<SavedGame>(slug, difficulty, dateKey);
+      if (saved?.counts?.length === puzzle.pairs.length) {
+        counts = saved.counts;
+        seconds = saved.seconds;
+        setStatus(saved.status);
+        window.dispatchEvent(
+          new CustomEvent("puzzle:timer-set", { detail: { seconds, running: saved.status === "playing" } })
+        );
+      } else {
+        counts = puzzle.pairs.map(() => 0);
+        seconds = 0;
+        setStatus("playing");
+      }
+      render();
+      puzzles.prepare(dateKey);
+    }
+
+    window.addEventListener("puzzle:timer-tick", (e) => {
+      seconds = (e as CustomEvent<{ seconds: number }>).detail.seconds;
+      if (status === "playing") save();
+    });
+
+    // Save the finishing time the moment it's solved (the timer stops on this same event)
+    window.addEventListener("puzzle:solved", save);
+
+    window.addEventListener("puzzle:difficulty-change", (e) => {
+      difficulty = (e as CustomEvent<{ value: BridgesDifficulty }>).detail.value;
+      load();
+    });
+
+    window.addEventListener("puzzle:new-day", (e) => {
+      dateKey = (e as CustomEvent<{ dateKey: string }>).detail.dateKey;
+      forgetOldProgress(slug);
+      load();
+    });
+
+    forgetOldProgress(slug);
+    load();
   }
 
   document.querySelectorAll<HTMLElement>("[data-bridges-root]").forEach(initBridges);
