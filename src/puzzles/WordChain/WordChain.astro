@@ -1,82 +1,161 @@
 ---
 import type { PuzzleConfig } from "../types";
+import { WORDS, parentOf } from "./puzzles";
 
 interface Props {
-  puzzle?: PuzzleConfig;
+  puzzle: PuzzleConfig;
   date?: string;
 }
 
-// 1-2-4-8 Pyramid Tree Data (15 Total Items)
-const pyramidNodes = [
-  /* Row 0 (1) */ { id: 0, row: 0, text: "HOT" },
-  /* Row 1 (2) */ { id: 1, row: 1, text: "DOG" },
-                  { id: 2, row: 1, text: "WATER" },
-  /* Row 2 (4) */ { id: 3, row: 2, text: "HOUSE" },
-                  { id: 4, row: 2, text: "FOOD" },
-                  { id: 5, row: 2, text: "FALL" },
-                  { id: 6, row: 2, text: "PARK" },
-  /* Row 3 (8) */ { id: 7, row: 3, text: "PARTY" },
-                  { id: 8, row: 3, text: "CAT" },
-                  { id: 9, row: 3, text: "TRUCK" },
-                  { id: 10, row: 3, text: "COURT" },
-                  { id: 11, row: 3, text: "GUY" },
-                  { id: 12, row: 3, text: "OUT" },
-                  { id: 13, row: 3, text: "BENCH" },
-                  { id: 14, row: 3, text: "PLACE" },
-];
+const { puzzle } = Astro.props;
 
-const edges = pyramidNodes
-  .filter((n) => n.row < 3)
-  .flatMap((n) => [
-    { parentId: n.id, childId: 2 * n.id + 1, isLeft: true },
-    { parentId: n.id, childId: 2 * n.id + 2, isLeft: false },
-  ]);
-
-const rows = [0, 1, 2, 3].map((r) => pyramidNodes.filter((n) => n.row === r));
-
-// Every correct "upper lower" phrase. Check compares links against these, so a pair counts
-// wherever it sits on the board (and with the lower word on either side).
-const answer = edges.map(({ parentId, childId }) => `${pyramidNodes[parentId].text} ${pyramidNodes[childId].text}`);
+// The pyramid's shape only: 1-2-4-8 positions in heap order (see puzzles.ts). The day's words are
+// filled in by the script from the player's local date, so the answer is never in the page.
+const positions = Array.from({ length: WORDS }, (_, p) => p);
+const rows = [0, 1, 2, 3].map((r) => positions.filter((p) => p >= 2 ** r - 1 && p < 2 ** (r + 1) - 1));
+const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), child }));
 ---
 
 <!--
   Interaction:
-  - Lines are clicked to toggle them on, linking those two words.
-  - Words (tiles) are drag-only, with no selected state. Dragging a linked word carries its whole
-    linked group, which can only land on its own spaces or unlinked words (those slide into the
-    spaces the group left). A word may switch to the other side under its parent if needed.
-  - Check (toolbar) tests every link: correct ones turn green and lock for good, wrong ones flash.
+  - Tap or click a line to link the two words it joins (tap again to unlink).
+  - Drag a word to move it, or tap a word and then tap where it should go. A linked word carries
+    its whole linked group, which can only land on its own spaces or unlinked words (those slide
+    into the spaces the group left). A word may switch to the other side under its parent if needed.
+  - Check (the button under the pyramid) tests every link: correct ones turn green and lock for good, wrong ones flash and come undone.
     There are 3 checks. After that the button becomes "Final check", which grades the whole
     pyramid: all right is solved, anything wrong ends the game.
+  Keyboard: arrow keys move between words, Space or Enter picks a word up and puts it down,
+  Shift+Left/Right links the word to the one below on that side, Shift+Up to the one above.
+  The board, links, checks left and result are saved per day, so a refresh picks up where it was.
 -->
-<div class="pyramid" data-puzzle-root data-answer={JSON.stringify(answer)}>
+<div class="pyramid" data-word-chain-root data-splash data-slug={puzzle.slug}>
   <svg class="pyramid__lines" data-edges-svg aria-hidden="true">
-    {edges.map(({ parentId, childId, isLeft }) => (
-      <g data-edge-group data-parent={parentId} data-child={childId} data-is-left={isLeft ? "true" : "false"}>
-        <path data-edge class="pyramid__edge" />
+    {edges.map(({ parent, child }) => (
+      <g data-edge-group data-parent={parent} data-child={child}>
+        <path data-edge class="pyramid__edge" pathLength="1" />
+        <path data-break-ticks class="pyramid__break-ticks" />
+        <path class="pyramid__edge-fill" pathLength="1" />
         <path data-edge-hit class="pyramid__edge-hit" />
       </g>
     ))}
   </svg>
 
-  <div class="pyramid__rows">
-    {rows.map((rowNodes, rowIdx) => (
-      <div class="pyramid__row" data-row={rowIdx} style={`--cols: ${rowNodes.length}`}>
-        {rowNodes.map((node) => (
-          <button
-            type="button"
-            data-tile
-            data-id={node.id}
-            data-row={rowIdx}
-            class="pyramid__tile"
-          >
-            <span data-text>{node.text}</span>
+  <div class="pyramid__rows" role="group" aria-label="Word pyramid">
+    {rows.map((row, r) => (
+      <div class="pyramid__row" style={`--cols: ${row.length}`}>
+        {row.map((p) => (
+          <button type="button" data-tile data-id={p} data-row={r} tabindex={p === 0 ? 0 : -1} class="pyramid__tile">
+            <span data-text></span>
           </button>
         ))}
       </div>
     ))}
   </div>
 </div>
+
+<!--
+  Word Chain is the only puzzle that doesn't finish by itself, so Check sits right under the board
+  rather than in the toolbar: outlined while there's nothing new to check, filled in the puzzle's
+  color once there is, with a dot for each check left. After the 3 checks it becomes the final check.
+-->
+<div class="word-chain__check-row">
+  <button type="button" class="word-chain__check" data-check-button disabled>
+    <span data-check-label>Link words to check</span>
+    <span class="word-chain__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+  </button>
+</div>
+
+<style>
+  .word-chain__check-row {
+    display: flex;
+    justify-content: center;
+    margin-top: 0.25rem;
+  }
+
+  .word-chain__check {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 1.2rem;
+    border: 1.5px solid rgb(var(--puzzle-strong));
+    border-radius: 999px;
+    color: rgb(var(--puzzle-strong));
+    background: transparent;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+
+  .word-chain__check:disabled {
+    border-color: rgb(var(--line));
+    color: rgb(var(--muted));
+    cursor: default;
+  }
+
+  .word-chain__check.is-ready {
+    background: rgb(var(--puzzle-strong));
+    color: rgb(var(--on-color));
+  }
+
+  .word-chain__check.is-final {
+    border-color: rgb(var(--coral-strong));
+    color: rgb(var(--coral-strong));
+  }
+
+  .word-chain__check.is-final.is-ready {
+    background: rgb(var(--coral-strong));
+    color: rgb(var(--on-color));
+  }
+
+  /* Once the game is over it steps aside (keeping its space, so nothing jumps) */
+  .word-chain__check.is-hidden {
+    visibility: hidden;
+  }
+
+  .word-chain__check:focus-visible {
+    outline: 3px solid rgb(var(--puzzle-strong) / 0.5);
+    outline-offset: 2px;
+  }
+
+  /* One dot per check left */
+  .word-chain__dots {
+    display: inline-flex;
+    gap: 0.25rem;
+  }
+
+  .word-chain__dots i {
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 50%;
+    background: currentColor;
+    transition: opacity 0.2s ease;
+  }
+
+  .word-chain__dots i.is-spent {
+    opacity: 0.25;
+  }
+
+  .word-chain__check.is-final .word-chain__dots {
+    display: none;
+  }
+
+  /* A small pop the moment there's something to check */
+  .word-chain__check.is-popping {
+    animation: check-pop 0.3s ease-out;
+  }
+
+  @keyframes check-pop {
+    50% { transform: scale(1.07); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .word-chain__check.is-popping {
+      animation: none;
+    }
+  }
+</style>
 
 <style>
   .pyramid {
@@ -126,15 +205,65 @@ const answer = edges.map(({ parentId, childId }) => `${pyramidNodes[parentId].te
     stroke-width: 2.5;
   }
 
-  [data-edge-group].is-active .pyramid__edge {
+  /* Already checked and wrong: wherever these two words meet, the line shows snapped in the
+     middle (it can't be linked again, so it never costs another check) */
+  [data-edge-group].is-known-wrong .pyramid__edge {
+    /* The break sits in the middle of the part showing between the words (set by drawEdges) */
+    stroke-dasharray: var(--break-at, 0.42) var(--break-gap, 0.16) 1;
+  }
+
+  /* The crossbars at each end of the break, like a snapped line */
+  .pyramid__break-ticks {
+    display: none;
+    fill: none;
+    stroke: var(--line-idle);
+    stroke-width: 2;
+    stroke-linecap: round;
+    pointer-events: none;
+    transition: stroke 0.15s ease;
+  }
+
+  [data-edge-group].is-known-wrong .pyramid__break-ticks {
+    display: inline;
+  }
+
+  [data-edge-group]:hover .pyramid__break-ticks {
+    stroke: var(--line-hover);
+  }
+
+  [data-edge-group].is-known-wrong .pyramid__edge-hit {
+    cursor: not-allowed;
+  }
+
+  /* Tapped anyway: a short flash */
+  [data-edge-group].is-refused .pyramid__edge,
+  [data-edge-group].is-refused .pyramid__break-ticks {
+    animation: pyramid-wrong 0.6s ease;
+  }
+
+  /* A link is a colored line over the grey one. Each path runs from the upper word down to the
+     lower one, so growing the dash (offset 1 -> 0) draws it downward when linking, and shrinking it
+     pulls it back up from the lower word when unlinking. Butt caps, so an empty dash leaves no dot. */
+  .pyramid__edge-fill {
+    fill: none;
     stroke: var(--line-active);
     stroke-width: 4;
+    stroke-linecap: butt;
+    stroke-dasharray: 1 1;
+    stroke-dashoffset: 1;
+    pointer-events: none;
+    transition: stroke-dashoffset 0.35s ease-in-out, stroke 0.15s ease;
+  }
+
+  [data-edge-group].is-active .pyramid__edge-fill,
+  [data-edge-group].is-locked .pyramid__edge-fill,
+  [data-edge-group].is-failed .pyramid__edge-fill {
+    stroke-dashoffset: 0;
   }
 
   /* Checked and correct: green, and the line can't be tapped off any more */
-  [data-edge-group].is-locked .pyramid__edge {
+  [data-edge-group].is-locked .pyramid__edge-fill {
     stroke: rgb(var(--seafoam-strong));
-    stroke-width: 4;
   }
 
   [data-edge-group].is-locked .pyramid__edge-hit {
@@ -142,16 +271,25 @@ const answer = edges.map(({ parentId, childId }) => `${pyramidNodes[parentId].te
   }
 
   /* Checked and wrong: a short coral flash */
-  [data-edge-group].is-wrong .pyramid__edge {
+  [data-edge-group].is-wrong .pyramid__edge-fill {
     stroke: rgb(var(--coral-strong));
-    stroke-width: 4;
     animation: pyramid-wrong 0.6s ease;
   }
 
-  /* Final check failed: wrong lines stay coral */
-  [data-edge-group].is-failed .pyramid__edge {
+  /* Final check failed: wrong lines draw in coral and stay */
+  [data-edge-group].is-failed .pyramid__edge-fill {
     stroke: rgb(var(--coral-strong));
-    stroke-width: 4;
+  }
+
+  /* No drawing when a saved board first appears */
+  .pyramid.no-draw .pyramid__edge-fill {
+    transition: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pyramid__edge-fill {
+      transition: stroke 0.15s ease;
+    }
   }
 
   /* Game over (solved or failed): the board can't be changed */
@@ -174,7 +312,9 @@ const answer = edges.map(({ parentId, childId }) => `${pyramidNodes[parentId].te
     display: flex;
     flex-direction: column;
     width: 100%;
-    gap: clamp(1.75rem, 5vh, 3.25rem);
+    /* Rows close together, so lines flow in short arcs between them (but each keeps ~20px showing
+       between the words, enough to tap) */
+    gap: clamp(1rem, 2vw, 1.25rem);
   }
 
   /* Each row splits the width into equal columns with the same gap,
@@ -219,6 +359,11 @@ const answer = edges.map(({ parentId, childId }) => `${pyramidNodes[parentId].te
     outline: none;
   }
 
+  .pyramid__tile:focus-visible {
+    outline: 3px solid rgb(var(--puzzle-strong));
+    outline-offset: 2px;
+  }
+
   .pyramid__tile:active {
     cursor: grabbing;
   }
@@ -226,6 +371,12 @@ const answer = edges.map(({ parentId, childId }) => `${pyramidNodes[parentId].te
   .pyramid__tile.is-locked {
     border-color: rgb(var(--seafoam-strong));
     background: color-mix(in srgb, rgb(var(--seafoam)) 18%, rgb(var(--surface)));
+  }
+
+  /* Picked up by a tap (with its linked group), waiting for a tap on where it goes */
+  .pyramid__tile.is-selected {
+    border-color: rgb(var(--puzzle-strong));
+    background: color-mix(in srgb, rgb(var(--puzzle)) 22%, rgb(var(--surface)));
   }
 
   .pyramid__tile.is-drop-target {
@@ -252,40 +403,109 @@ const answer = edges.map(({ parentId, childId }) => `${pyramidNodes[parentId].te
 </style>
 
 <script>
+  import { forgetOldProgress, loadProgress, localDateKey, saveProgress } from "../daily";
+  import { WORDS, acceptedPhrases, parentOf, puzzleFor, shuffledWords } from "./puzzles";
+
+  const CHECKS = 3;
+  /** Word Chain has one difficulty; progress and stats are kept under this name */
+  const DIFFICULTY = "default";
+  const LAST = WORDS - 1;
+
+  type Status = "playing" | "solved" | "failed" | "revealed";
+
+  /** What's saved for one day */
+  interface SavedGame {
+    words: string[];
+    links: number[];
+    locked: number[];
+    /** "UPPER LOWER" pairs already checked and wrong (missing in saves from before this was added) */
+    wrong?: string[];
+    checksLeft: number;
+    seconds: number;
+    status: Status;
+  }
+
+  const rowOf = (p: number) => Math.floor(Math.log2(p + 1));
+
   function initPyramid(root: HTMLElement) {
-    const svg = root.querySelector<SVGSVGElement>("[data-edges-svg]");
-    const tiles = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-tile]"));
-    if (!svg) return;
-
+    const slug = root.dataset.slug!;
+    const svg = root.querySelector<SVGSVGElement>("[data-edges-svg]")!;
+    const tiles = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-tile]")); // in position order
     const edgeGroups = Array.from(root.querySelectorAll<SVGGElement>("[data-edge-group]"));
+    const tileAt = (p: number) => tiles[p];
+    const edgeGroupFor = (child: number) => edgeGroups[child - 1];
 
-    function tileById(id: number) {
-      return tiles.find((t) => Number(t.dataset.id) === id) ?? null;
+    let dateKey = localDateKey();
+    let phrases = new Set<string>();
+    /** The word in each position */
+    let words: string[] = [];
+    // A link is stored by its child position (every position below the top has exactly one parent)
+    const links = new Set<number>();
+    // Links that passed a check. Stored the same way as `links` (and always also in it)
+    const locked = new Set<number>();
+    /** Pairs a check found wrong, by their words ("UPPER LOWER"), so they stay marked wherever they meet */
+    const wrongPairs = new Set<string>();
+    let checksLeft = CHECKS;
+    let status: Status = "playing";
+    let seconds = 0;
+    /** Position picked up by a tap, waiting for a tap on where it goes */
+    let selected: number | null = null;
+    let focusIndex = 0;
+    /** Boards before each move or link change since the last check (a check or hint can't be undone) */
+    let undoStack: { words: string[]; links: number[]; locked: number[] }[] = [];
+
+    const over = () => status !== "playing";
+    const remember = () => undoStack.push({ words: words.slice(), links: [...links], locked: [...locked] });
+    /** The "UPPER LOWER" pair a line joins right now */
+    const pairAt = (child: number) => `${words[parentOf(child)]} ${words[child]}`;
+    const isRight = (child: number) => phrases.has(pairAt(child));
+    const knownWrong = (child: number) => wrongPairs.has(pairAt(child));
+
+    function save() {
+      saveProgress(slug, DIFFICULTY, dateKey, {
+        words,
+        links: [...links],
+        locked: [...locked],
+        wrong: [...wrongPairs],
+        checksLeft,
+        seconds,
+        status,
+      } satisfies SavedGame);
     }
 
     function drawEdges() {
       const rootRect = root.getBoundingClientRect();
       if (rootRect.width === 0 || rootRect.height === 0) return;
 
-      svg!.setAttribute("viewBox", `0 0 ${rootRect.width} ${rootRect.height}`);
+      svg.setAttribute("viewBox", `0 0 ${rootRect.width} ${rootRect.height}`);
 
       edgeGroups.forEach((group) => {
-        const a = tileById(Number(group.dataset.parent));
-        const b = tileById(Number(group.dataset.child));
-        if (!a || !b) return;
+        const ra = tileAt(Number(group.dataset.parent)).getBoundingClientRect();
+        const rb = tileAt(Number(group.dataset.child)).getBoundingClientRect();
 
-        const ra = a.getBoundingClientRect();
-        const rb = b.getBoundingClientRect();
-
-        // A parent's two links form one smooth arch that passes behind the parent:
-        // each half starts at the parent's center (hidden under the tile) and lands
-        // on the child's top center. So where a line comes out of the tile's side
-        // it's already curving down — no flat start or elbow.
-        const x1 = ra.left + ra.width / 2 - rootRect.left;
-        const y1 = ra.top + ra.height * 0.4 - rootRect.top;
-
-        const x2 = rb.left + rb.width / 2 - rootRect.left;
-        const y2 = rb.top - rootRect.top + 2; // tuck just under the child's top edge
+        const centerX = (r: DOMRect) => r.left + r.width / 2 - rootRect.left;
+        const centerY = (r: DOMRect) => r.top + r.height / 2 - rootRect.top;
+        const side = Math.sign(centerX(rb) - centerX(ra)); // -1: the lower word is to the left
+        let x1: number;
+        let x2: number;
+        let y2: number;
+        if (Number(group.dataset.child) >= 7) {
+          // Down to the bottom row, the words below sit almost straight under the word above, so
+          // center to center would show only a sliver of line. Instead each half is one side of a
+          // wide arch centered on the upper word: hidden behind it at the top, it comes out of the
+          // word's side already curving down and lands on the outer part of the lower word's top.
+          x1 = centerX(ra);
+          x2 = centerX(rb) + side * rb.width * 0.22;
+          y2 = rb.top - rootRect.top + 2; // tucked just under the lower word's top edge
+        } else {
+          // A parent's two links form one smooth arch that passes behind it: each half runs center
+          // to center, hidden under both words at its ends, so it leaves the upper word's side
+          // already curving down and meets the lower word at a slant.
+          x1 = centerX(ra);
+          x2 = centerX(rb);
+          y2 = centerY(rb);
+        }
+        const y1 = centerY(ra);
 
         const k = 0.5523; // bezier constant for a quarter-ellipse
         const c1x = x1 + (x2 - x1) * k;
@@ -293,78 +513,170 @@ const answer = edges.map(({ parentId, childId }) => `${pyramidNodes[parentId].te
 
         const pathData = `M ${x1} ${y1} C ${c1x} ${y1}, ${x2} ${c2y}, ${x2} ${y2}`;
 
-        group.querySelectorAll("path").forEach((path) => {
+        group.querySelectorAll("path:not([data-break-ticks])").forEach((path) => {
           path.setAttribute("d", pathData);
         });
+
+        // Where the line shows between the two words (its ends are hidden under them), as shares
+        // of its length, so a broken line can break in the middle of what's visible
+        const path = group.querySelector<SVGPathElement>("[data-edge]")!;
+        const length = path.getTotalLength();
+        const hidden = (x: number, y: number) =>
+          [ra, rb].some((r) => x >= r.left - rootRect.left && x <= r.right - rootRect.left && y >= r.top - rootRect.top && y <= r.bottom - rootRect.top);
+        let from = -1;
+        let to = -1;
+        for (let step = 0; step <= 60; step++) {
+          const { x, y } = path.getPointAtLength((length * step) / 60);
+          if (hidden(x, y)) continue;
+          if (from === -1) from = step / 60;
+          to = step / 60;
+        }
+        if (from === -1) return;
+
+        // The break: a gap of 8-18px with a short crossbar at each end, like a snapped line
+        const gapPx = Math.min(Math.max((to - from) * length * 0.3, 8), 18);
+        const breakAt = ((from + to) / 2) * length - gapPx / 2;
+        group.style.setProperty("--break-at", String(breakAt / length));
+        group.style.setProperty("--break-gap", String(gapPx / length));
+        const crossbar = (at: number) => {
+          const p = path.getPointAtLength(at);
+          const before = path.getPointAtLength(Math.max(0, at - 1));
+          const after = path.getPointAtLength(Math.min(length, at + 1));
+          const dx = after.x - before.x;
+          const dy = after.y - before.y;
+          const scale = 7 / (Math.hypot(dx, dy) || 1); // 7px each way, across the line
+          return `M ${p.x - dy * scale} ${p.y + dx * scale} L ${p.x + dy * scale} ${p.y - dx * scale}`;
+        };
+        group
+          .querySelector("[data-break-ticks]")!
+          .setAttribute("d", `${crossbar(breakAt)} ${crossbar(breakAt + gapPx)}`);
       });
     }
 
-    // ---------- Board state ----------
-    // Positions are heap-indexed: 0 is the top, children of p are 2p+1 (left) and 2p+2 (right).
-    // A link is stored by its child position (every position below the top has exactly one parent).
-    const LAST = tiles.length - 1;
-    const words = tiles.map((t) => t.querySelector("[data-text]")?.textContent ?? "");
-    const links = new Set<number>();
-    // Links that passed a check. Stored the same way as `links` (and always also in it)
-    const locked = new Set<number>();
-    const answer = new Set<string>(JSON.parse(root.dataset.answer ?? "[]"));
-
-    const parentOf = (p: number) => (p - 1) >> 1;
-    const tileAt = (p: number) => tileById(p)!;
+    /** Shrinks any word too wide for its tile (narrow phones), rather than cutting it off with "…" */
+    function fitWords() {
+      tiles.forEach((tile) => {
+        const text = tile.querySelector<HTMLElement>("[data-text]")!;
+        text.style.fontSize = "";
+        const room = tile.clientWidth - 8; // the tile's side padding
+        if (text.offsetWidth > room) text.style.fontSize = `${Math.floor((room / text.offsetWidth) * 100)}%`;
+      });
+    }
 
     function render() {
-      tiles.forEach((tile) => {
-        const p = Number(tile.dataset.id);
-        const text = tile.querySelector("[data-text]");
-        if (text) text.textContent = words[p];
+      const picked = selected === null ? [] : groupOf(selected);
+      tiles.forEach((tile, p) => {
+        tile.querySelector("[data-text]")!.textContent = words[p];
         const lockedHere = locked.has(p) || locked.has(2 * p + 1) || locked.has(2 * p + 2);
         tile.classList.toggle("is-locked", lockedHere);
+        tile.classList.toggle("is-selected", picked.includes(p));
+
+        const linkedTo = [p, 2 * p + 1, 2 * p + 2]
+          .filter((child) => child > 0 && child <= LAST && links.has(child))
+          .map((child) => words[child === p ? parentOf(p) : child]);
+        tile.setAttribute(
+          "aria-label",
+          `${words[p]}, row ${rowOf(p) + 1}` +
+            (linkedTo.length ? `, linked to ${linkedTo.join(" and ")}` : "") +
+            (picked.includes(p) ? ", picked up" : "")
+        );
       });
       edgeGroups.forEach((group) => {
         const child = Number(group.dataset.child);
         group.classList.toggle("is-active", links.has(child) && !locked.has(child));
         group.classList.toggle("is-locked", locked.has(child));
+        group.classList.toggle("is-known-wrong", knownWrong(child) && !locked.has(child));
+        group.classList.toggle("is-failed", status === "failed" && !isRight(child));
       });
+      root.classList.toggle("is-over", over());
+      fitWords();
+      updateCheckButton();
     }
 
     // ---------- Checking ----------
-    const CHECKS = 3;
-    let checksLeft = CHECKS;
-    let over = false;
+    /** Hint asks first (it costs a check) and is off once none are left */
+    function updateToolbar() {
+      window.dispatchEvent(
+        new CustomEvent("puzzle:toolbar-update", {
+          detail: { action: "hint", confirm: "Uses a check", disabled: over() || checksLeft === 0 },
+        })
+      );
+    }
 
-    const isRight = (child: number) => answer.has(`${words[parentOf(child)]} ${words[child]}`);
-    const edgeGroupFor = (child: number) => edgeGroups.find((g) => Number(g.dataset.child) === child);
+    const checkButton = root.parentElement!.querySelector<HTMLButtonElement>("[data-check-button]")!;
+    const checkLabel = checkButton.querySelector<HTMLElement>("[data-check-label]")!;
+    const checkDots = Array.from(checkButton.querySelectorAll("i"));
+    /** The final check asks for a second tap first (it can end the game) */
+    let confirmingFinal = false;
+    let confirmTimer = 0;
 
+    /** Ready (filled) when there are new links to check, or always for the final check */
     function updateCheckButton() {
-      const detail = over
-        ? { action: "check", disabled: true }
-        : checksLeft > 0
-          ? { action: "check", label: `Check (${checksLeft})`, confirm: null }
-          : { action: "check", label: "Final check", confirm: "Sure?" };
-      window.dispatchEvent(new CustomEvent("puzzle:toolbar-update", { detail }));
+      const pending = [...links].some((child) => !locked.has(child));
+      const final = checksLeft === 0;
+      const ready = !over() && (final || pending);
+      if (ready && !checkButton.classList.contains("is-ready")) {
+        checkButton.classList.remove("is-popping");
+        void checkButton.offsetWidth; // restart the pop if it's still running
+        checkButton.classList.add("is-popping");
+        checkButton.addEventListener("animationend", () => checkButton.classList.remove("is-popping"), { once: true });
+      }
+      checkButton.classList.toggle("is-ready", ready);
+      checkButton.classList.toggle("is-final", final && !over());
+      checkButton.classList.toggle("is-hidden", over());
+      checkButton.disabled = !ready;
+      checkLabel.textContent = final
+        ? confirmingFinal
+          ? "Tap again to submit"
+          : "Final check"
+        : pending
+          ? "Check"
+          : "Link words to check";
+      checkDots.forEach((dot, i) => dot.classList.toggle("is-spent", i >= checksLeft));
+      checkButton.setAttribute(
+        "aria-label",
+        final ? checkLabel.textContent : `${checkLabel.textContent}, ${checksLeft} of ${CHECKS} checks left`
+      );
     }
 
     function endGame(solved: boolean) {
-      over = true;
-      root.classList.add("is-over");
-      updateCheckButton();
+      status = solved ? "solved" : "failed";
+      selected = null;
+      undoStack = [];
+      render();
+      updateToolbar();
+      save();
       if (solved) window.dispatchEvent(new Event("puzzle:solved"));
-      else window.dispatchEvent(new CustomEvent("puzzle:failed", { detail: { message: "The final check found phrases that don't fit. The wrong lines are marked in coral." } }));
+      else
+        window.dispatchEvent(
+          new CustomEvent("puzzle:failed", {
+            detail: { message: "The final check found phrases that don't fit. The wrong lines are marked in coral." },
+          })
+        );
     }
 
     /** One of the 3 checks: grades only the linked lines, locking the right ones */
     function check() {
+      // A known-wrong pair can only end up linked if a hint swapped words under a link; drop it
+      // rather than spend a check on it
+      [...links].filter((child) => !locked.has(child) && knownWrong(child)).forEach((child) => links.delete(child));
       const pending = [...links].filter((child) => !locked.has(child));
-      if (pending.length === 0) return; // nothing new linked, so don't spend a check
+      if (pending.length === 0) return render(); // nothing new linked, so don't spend a check
 
       checksLeft--;
+      undoStack = [];
       const wrong = pending.filter((child) => !isRight(child));
       pending.filter(isRight).forEach((child) => locked.add(child));
+      // Wrong links come undone (each pulls back up in coral, leaving a broken line), so Check only
+      // lights up again once there's something new to test
+      wrong.forEach((child) => {
+        wrongPairs.add(pairAt(child));
+        links.delete(child);
+      });
       render();
 
       wrong.forEach((child) => {
         const group = edgeGroupFor(child);
-        if (!group) return;
         group.classList.remove("is-wrong");
         void group.getBoundingClientRect(); // restart the flash if it's already showing
         group.classList.add("is-wrong");
@@ -372,8 +684,9 @@ const answer = edges.map(({ parentId, childId }) => `${pyramidNodes[parentId].te
       });
 
       // Every line locked in means every phrase is right
-      if (locked.size === LAST) endGame(true);
-      else updateCheckButton();
+      if (locked.size === LAST) return endGame(true);
+      updateToolbar();
+      save();
     }
 
     /** After the 3 checks: the whole pyramid has to be right, linked or not */
@@ -383,22 +696,120 @@ const answer = edges.map(({ parentId, childId }) => `${pyramidNodes[parentId].te
         links.add(child);
         locked.add(child);
       }
-      render();
-
-      const wrong = edgeGroups.filter((g) => !isRight(Number(g.dataset.child)));
-      wrong.forEach((g) => g.classList.add("is-failed"));
-      endGame(wrong.length === 0);
+      endGame(locked.size === LAST);
     }
 
-    window.addEventListener("puzzle:check", () => {
-      if (over) return;
-      if (checksLeft > 0) check();
-      else finalCheck();
+    checkButton.addEventListener("click", () => {
+      if (over()) return;
+      if (checksLeft > 0) return check();
+      window.clearTimeout(confirmTimer);
+      if (!confirmingFinal) {
+        confirmingFinal = true;
+        updateCheckButton();
+        confirmTimer = window.setTimeout(() => {
+          confirmingFinal = false;
+          updateCheckButton();
+        }, 3000);
+        return;
+      }
+      confirmingFinal = false;
+      finalCheck();
     });
-    // The toolbar's script may run after this one, so set the label once the page is ready
-    document.addEventListener("DOMContentLoaded", updateCheckButton);
 
-    /** All positions joined to p by links (just [p] if it's a loose card). Sorted, so the group's root is first. */
+    /**
+     * Puts the next pair of the answer (top down) under its upper word and locks the line, at the
+     * cost of a check. Works from wherever the upper word sits now, so it fits the player's own
+     * layout, and never moves a word that's part of a locked line. Free if nothing could be placed.
+     */
+    function hint() {
+      const inLockedLine = (p: number) => locked.has(p) || locked.has(2 * p + 1) || locked.has(2 * p + 2);
+      const answer = puzzleFor(dateKey).words;
+      for (let child = 1; child <= LAST; child++) {
+        const upper = answer[parentOf(child)];
+        const lower = answer[child];
+        if ([...locked].some((c) => words[parentOf(c)] === upper && words[c] === lower)) continue;
+        const from = words.indexOf(upper);
+        const at = words.indexOf(lower);
+        const spots = [2 * from + 1, 2 * from + 2].filter((c) => c <= LAST);
+        // Already under it is best; otherwise swap it into a spot under it that isn't locked
+        const spot =
+          spots.find((c) => c === at) ??
+          (inLockedLine(at) ? undefined : spots.find((c) => !locked.has(c) && !locked.has(2 * c + 1) && !locked.has(2 * c + 2)));
+        if (spot === undefined) continue;
+
+        [words[spot], words[at]] = [words[at], words[spot]];
+        links.add(spot);
+        locked.add(spot);
+        checksLeft--;
+        undoStack = [];
+        selected = null;
+        if (locked.size === LAST) return endGame(true);
+        render();
+        updateToolbar();
+        save();
+        return;
+      }
+    }
+
+    window.addEventListener("puzzle:hint", () => {
+      if (!over() && checksLeft > 0) hint();
+    });
+
+    // The whole answer drawn in, then the board locks (no celebration)
+    window.addEventListener("puzzle:reveal", () => {
+      if (over()) return;
+      words = puzzleFor(dateKey).words.slice();
+      for (let child = 1; child <= LAST; child++) {
+        links.add(child);
+        locked.add(child);
+      }
+      status = "revealed";
+      selected = null;
+      undoStack = [];
+      render();
+      updateToolbar();
+      save();
+      window.dispatchEvent(new Event("puzzle:revealed"));
+    });
+
+    // The day's starting board again, with all 3 checks back (finished games can be played again)
+    window.addEventListener("puzzle:reset", () => {
+      // Starting over after a finish also restarts the stopped timer
+      if (over()) {
+        seconds = 0;
+        window.dispatchEvent(new Event("puzzle:timer-reset"));
+      }
+      words = shuffledWords(puzzleFor(dateKey), `${slug}:${dateKey}`);
+      links.clear();
+      locked.clear();
+      wrongPairs.clear();
+      checksLeft = CHECKS;
+      status = "playing";
+      selected = null;
+      undoStack = [];
+      render();
+      updateToolbar();
+      save();
+    });
+
+    // Back one move or link change, but never past a check or hint
+    window.addEventListener("puzzle:undo", () => {
+      const previous = undoStack.pop();
+      if (over() || !previous) return;
+      words = previous.words;
+      links.clear();
+      previous.links.forEach((child) => links.add(child));
+      locked.clear();
+      previous.locked.forEach((child) => locked.add(child));
+      selected = null;
+      render();
+      save();
+    });
+    // The toolbar's script may run after this one, so set the label again once the page is ready
+    document.addEventListener("DOMContentLoaded", updateToolbar);
+
+    // ---------- Moving words ----------
+    /** All positions joined to p by links (just [p] if it's a loose word). Sorted, so the group's root is first. */
     function groupOf(p: number) {
       const seen = new Set([p]);
       const queue = [p];
@@ -417,62 +828,83 @@ const answer = edges.map(({ parentId, childId }) => `${pyramidNodes[parentId].te
     }
 
     /**
-     * Where would `group` go if the card at `grabbed` were dropped on `target`?
-     * Links must stay parent -> child, and the group may only land on its own spaces or loose cards.
-     * A card may switch to the other side under its parent if needed; layouts with the
-     * fewest switches win. Returns old position -> new position, or null if nothing fits.
+     * Where do the words go if the word at `grabbed` (with its linked group) is dropped on `target`?
+     * Links must stay parent -> child. The group may land on its own spaces or loose words; dropped
+     * on another linked group, the two groups trade places (the word dropped on goes to where
+     * `grabbed` was). A word may switch to the other side under its parent if needed; layouts with
+     * the fewest switches win. Returns old position -> new position for every word in a group that
+     * moves, or null if nothing fits.
      */
     function planMove(group: number[], grabbed: number, target: number) {
-      const inGroup = new Set(group);
-      const isFree = (q: number) => q <= LAST && (inGroup.has(q) || groupOf(q).length === 1);
+      const other = group.includes(target) ? [] : groupOf(target);
+      const swapping = other.length > 1;
+      const movers = new Set([...group, ...(swapping ? other : [])]);
+      const isFree = (q: number) => q <= LAST && (movers.has(q) || groupOf(q).length === 1);
+
+      /** Every way to lay out `members` with `anchor` on `spot`, keeping off the `taken` spaces */
+      function layouts(members: number[], anchor: number, spot: number, taken: Set<number>) {
+        const found: { mapping: Map<number, number>; flips: number }[] = [];
+        const [root, ...rest] = members; // sorted, so parents always come before children
+
+        // Place each member under its parent's new spot (same side first), backtracking through every option
+        function place(i: number, mapping: Map<number, number>, used: Set<number>, flips: number) {
+          if (i === rest.length) {
+            if (mapping.get(anchor) === spot) found.push({ mapping: new Map(mapping), flips });
+            return;
+          }
+          const p = rest[i];
+          const parentSpot = mapping.get(parentOf(p))!;
+          const sameSide = p % 2 === 1 ? 1 : 2;
+          for (const side of [sameSide, 3 - sameSide]) {
+            const q = 2 * parentSpot + side;
+            if (!isFree(q) || used.has(q) || taken.has(q)) continue;
+            mapping.set(p, q);
+            used.add(q);
+            place(i + 1, mapping, used, flips + (side === sameSide ? 0 : 1));
+            used.delete(q);
+            mapping.delete(p);
+          }
+        }
+
+        for (let newRoot = 0; newRoot <= LAST; newRoot++) {
+          if (!isFree(newRoot) || taken.has(newRoot)) continue;
+          place(0, new Map([[root, newRoot]]), new Set([newRoot]), 0);
+        }
+        return found;
+      }
+
       let best: Map<number, number> | null = null;
       let bestFlips = Infinity;
-
-      // Place p at q, then its linked children (same side first), backtracking through every option
-      function place(order: number[], i: number, mapping: Map<number, number>, used: Set<number>, flips: number) {
-        if (flips >= bestFlips) return;
-        if (i === order.length) {
-          if (mapping.get(grabbed) === target) {
-            best = new Map(mapping);
-            bestFlips = flips;
-          }
-          return;
+      for (const mine of layouts(group, grabbed, target, new Set())) {
+        if (!swapping) {
+          if (mine.flips < bestFlips) [best, bestFlips] = [mine.mapping, mine.flips];
+          continue;
         }
-        const p = order[i];
-        const parentSpot = mapping.get(parentOf(p))!;
-        const sameSide = p % 2 === 1 ? 1 : 2;
-        for (const side of [sameSide, 3 - sameSide]) {
-          const q = 2 * parentSpot + side;
-          if (!isFree(q) || used.has(q)) continue;
-          mapping.set(p, q);
-          used.add(q);
-          place(order, i + 1, mapping, used, flips + (side === sameSide ? 0 : 1));
-          used.delete(q);
-          mapping.delete(p);
+        for (const theirs of layouts(other, target, grabbed, new Set(mine.mapping.values()))) {
+          if (mine.flips + theirs.flips >= bestFlips) continue;
+          best = new Map([...mine.mapping, ...theirs.mapping]);
+          bestFlips = mine.flips + theirs.flips;
         }
       }
-
-      const [groupRoot, ...rest] = group; // sorted, so parents always come before children
-      for (let newRoot = 0; newRoot <= LAST; newRoot++) {
-        if (!isFree(newRoot)) continue;
-        place(rest, 0, new Map([[groupRoot, newRoot]]), new Set([newRoot]), 0);
-      }
-      return best as Map<number, number> | null; // assigned inside place()
+      return best;
     }
 
-    function applyMove(group: number[], mapping: Map<number, number>) {
+    /** Moves the words in `mapping` (old position -> new); loose words in the way fill the spaces left. */
+    function applyMove(mapping: Map<number, number>) {
+      remember();
+      const group = [...mapping.keys()].sort((a, b) => a - b);
       const targets = new Set(mapping.values());
       const vacated = group.filter((p) => !targets.has(p));
       const displaced = [...targets].filter((p) => !group.includes(p)).sort((a, b) => a - b);
 
       const next = words.slice();
-      // Loose cards that were in the way slide into the spaces the group left
+      // Loose words that were in the way slide into the spaces the group left
       displaced.forEach((p, i) => (next[vacated[i]] = words[p]));
       group.forEach((p) => (next[mapping.get(p)!] = words[p]));
-      words.splice(0, words.length, ...next);
+      words = next;
 
-      // The group's links move with it (every member except its root links to its parent)
-      const groupLinks = group.slice(1);
+      // The links move with their words (a member's link is to its parent, which moves with it)
+      const groupLinks = group.filter((p) => links.has(p));
       const groupLocked = groupLinks.filter((p) => locked.has(p));
       groupLinks.forEach((p) => links.delete(p));
       groupLocked.forEach((p) => locked.delete(p));
@@ -480,22 +912,56 @@ const answer = edges.map(({ parentId, childId }) => `${pyramidNodes[parentId].te
       groupLocked.forEach((p) => locked.add(mapping.get(p)!));
 
       render();
+      save();
     }
 
-    // ---------- Lines: click to toggle the link between two words ----------
+    /**
+     * Tap a word to pick it up (with its linked group), then tap where it should go. Tapping the
+     * picked-up group again puts it down; a spot it can't go picks up that word instead.
+     * Returns true if a move was made.
+     */
+    function tapWord(p: number) {
+      if (over()) return false;
+      let moved = false;
+      if (selected === null) selected = p;
+      else if (groupOf(selected).includes(p)) selected = null;
+      else {
+        const plan = planMove(groupOf(selected), selected, p);
+        if (plan) {
+          selected = null;
+          applyMove(plan);
+          moved = true;
+        } else selected = p;
+      }
+      render();
+      return moved;
+    }
+
+    // ---------- Lines: tap to toggle the link between two words ----------
+    function toggleLink(child: number) {
+      if (over() || child < 1 || child > LAST || locked.has(child)) return;
+      if (!links.has(child) && knownWrong(child)) {
+        const group = edgeGroupFor(child);
+        group.classList.remove("is-refused");
+        void group.getBoundingClientRect(); // restart the flash if it's already showing
+        group.classList.add("is-refused");
+        group.addEventListener("animationend", () => group.classList.remove("is-refused"), { once: true });
+        return;
+      }
+      remember();
+      if (links.has(child)) links.delete(child);
+      else links.add(child);
+      selected = null; // the picked-up group may have just changed
+      render();
+      save();
+    }
+
     edgeGroups.forEach((group) => {
-      group.querySelector("[data-edge-hit]")?.addEventListener("click", () => {
-        const child = Number(group.dataset.child);
-        if (locked.has(child)) return;
-        if (links.has(child)) links.delete(child);
-        else links.add(child);
-        render();
-      });
+      group.querySelector("[data-edge-hit]")!.addEventListener("click", () => toggleLink(Number(group.dataset.child)));
     });
 
-    // ---------- Tiles: drag-only. Dragging a linked card carries its whole group ----------
-    tiles.forEach((tile) => {
-      const grabbed = Number(tile.dataset.id);
+    // ---------- Words: drag to move, or tap. Dragging a linked word carries its whole group ----------
+    tiles.forEach((tile, grabbed) => {
       let pointerId: number | null = null;
       let startX = 0;
       let startY = 0;
@@ -530,6 +996,7 @@ const answer = edges.map(({ parentId, childId }) => `${pyramidNodes[parentId].te
       }
 
       tile.addEventListener("pointerdown", (e) => {
+        if (over() || e.button !== 0) return;
         pointerId = e.pointerId;
         startX = e.clientX;
         startY = e.clientY;
@@ -542,16 +1009,19 @@ const answer = edges.map(({ parentId, childId }) => `${pyramidNodes[parentId].te
 
         if (!moved && Math.hypot(e.clientX - startX, e.clientY - startY) > 3) {
           moved = true;
+          selected = null; // a drag replaces any tap pick-up
+          render();
           group = groupOf(grabbed);
           const fontSize = getComputedStyle(tile).fontSize; // ghosts live outside the board's size container
 
-          // One ghost per card in the group, each kept at its offset from where the pointer grabbed,
+          // One ghost per word in the group, each kept at its offset from where the pointer grabbed,
           // so nothing jumps when the drag starts
           ghosts = group.map((p) => {
             const src = tileAt(p);
             const rect = src.getBoundingClientRect();
             const el = src.cloneNode(true) as HTMLElement;
             el.classList.add("pyramid__drag-ghost");
+            el.removeAttribute("data-tile");
             el.style.width = `${rect.width}px`;
             el.style.height = `${rect.height}px`;
             el.style.fontSize = fontSize;
@@ -571,7 +1041,7 @@ const answer = edges.map(({ parentId, childId }) => `${pyramidNodes[parentId].te
         moveGhosts(e.clientX, e.clientY);
 
         // Preview every space the group would land in (nothing shows if it doesn't fit).
-        // Only recalculated when the pointer moves onto a different card.
+        // Only recalculated when the pointer moves onto a different word.
         const target = targetUnder(e.clientX, e.clientY);
         if (target === lastTarget) return;
         lastTarget = target;
@@ -587,9 +1057,11 @@ const answer = edges.map(({ parentId, childId }) => `${pyramidNodes[parentId].te
 
         if (moved) {
           const finalPlan = plan;
-          const movedGroup = group;
           cleanup();
-          if (finalPlan) applyMove(movedGroup, finalPlan);
+          if (finalPlan) applyMove(finalPlan);
+        } else {
+          setFocus(grabbed, false);
+          tapWord(grabbed);
         }
         moved = false;
       });
@@ -601,21 +1073,107 @@ const answer = edges.map(({ parentId, childId }) => `${pyramidNodes[parentId].te
       });
     });
 
-    const resizeObserver = new ResizeObserver(drawEdges);
+    // ---------- Keyboard ----------
+    /** Only one word is in the tab order at a time; the arrow keys move it. */
+    function setFocus(p: number, moveFocus: boolean) {
+      tileAt(focusIndex).tabIndex = -1;
+      focusIndex = p;
+      tileAt(p).tabIndex = 0;
+      if (moveFocus) tileAt(p).focus();
+    }
+
+    root.addEventListener("keydown", (e) => {
+      const tile = (e.target as Element).closest<HTMLButtonElement>("[data-tile]");
+      if (!tile) return;
+      const p = Number(tile.dataset.id);
+      const rowStart = 2 ** rowOf(p) - 1;
+      const rowEnd = 2 ** (rowOf(p) + 1) - 2;
+
+      if (e.shiftKey && e.key === "ArrowLeft") toggleLink(2 * p + 1);
+      else if (e.shiftKey && e.key === "ArrowRight") toggleLink(2 * p + 2);
+      else if (e.shiftKey && e.key === "ArrowUp") toggleLink(p);
+      else if (e.key === "ArrowLeft") setFocus(p > rowStart ? p - 1 : p, true);
+      else if (e.key === "ArrowRight") setFocus(p < rowEnd ? p + 1 : p, true);
+      else if (e.key === "ArrowUp") setFocus(p > 0 ? parentOf(p) : p, true);
+      else if (e.key === "ArrowDown") setFocus(2 * p + 1 <= LAST ? 2 * p + 1 : p, true);
+      else if (e.key === " " || e.key === "Enter") tapWord(p);
+      else if (e.key === "Escape" && selected !== null) {
+        selected = null;
+        render();
+      } else return;
+      e.preventDefault();
+    });
+
+    // ---------- Loading a day ----------
+    /** Lays out the day's saved board if there is one, otherwise the day's shuffled words. */
+    function load() {
+      root.classList.add("no-draw");
+      requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove("no-draw")));
+      const puzzle = puzzleFor(dateKey);
+      phrases = acceptedPhrases(puzzle);
+      links.clear();
+      locked.clear();
+      wrongPairs.clear();
+      selected = null;
+      undoStack = [];
+
+      const saved = loadProgress<SavedGame>(slug, DIFFICULTY, dateKey);
+      // Only trust a save holding exactly today's words
+      const valid =
+        saved?.words?.length === WORDS && [...saved.words].sort().join() === [...puzzle.words].sort().join();
+      if (valid) {
+        words = saved.words;
+        saved.links.forEach((child) => links.add(child));
+        saved.locked.forEach((child) => locked.add(child));
+        saved.wrong?.forEach((pair) => wrongPairs.add(pair));
+        checksLeft = saved.checksLeft;
+        status = saved.status;
+        seconds = saved.seconds;
+        window.dispatchEvent(
+          new CustomEvent("puzzle:timer-set", { detail: { seconds, running: status === "playing" } })
+        );
+      } else {
+        words = shuffledWords(puzzle, `${slug}:${dateKey}`);
+        checksLeft = CHECKS;
+        status = "playing";
+        seconds = 0;
+      }
+      render();
+      updateToolbar();
+      drawEdges();
+    }
+
+    window.addEventListener("puzzle:timer-tick", (e) => {
+      seconds = (e as CustomEvent<{ seconds: number }>).detail.seconds;
+      if (status === "playing") save();
+    });
+
+    window.addEventListener("puzzle:new-day", (e) => {
+      dateKey = (e as CustomEvent<{ dateKey: string }>).detail.dateKey;
+      forgetOldProgress(slug);
+      load();
+    });
+
+    const resizeObserver = new ResizeObserver(() => {
+      fitWords();
+      drawEdges();
+    });
     resizeObserver.observe(root);
 
     window.addEventListener("load", drawEdges);
     window.addEventListener("resize", drawEdges);
-    document.fonts?.ready.then(drawEdges);
+    document.fonts?.ready.then(() => {
+      fitWords(); // word widths change once the font arrives
+      drawEdges();
+    });
     requestAnimationFrame(() => {
       drawEdges();
       setTimeout(drawEdges, 100);
     });
 
-    window.addEventListener("puzzle:reset", () => location.reload());
+    forgetOldProgress(slug);
+    load();
   }
 
-  document
-    .querySelectorAll<HTMLElement>("[data-puzzle-root]")
-    .forEach(initPyramid);
+  document.querySelectorAll<HTMLElement>("[data-word-chain-root]").forEach(initPyramid);
 </script>

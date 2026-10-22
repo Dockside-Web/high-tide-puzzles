@@ -28,6 +28,16 @@ import {
   type BridgesDifficulty,
 } from "../src/puzzles/Bridges/generate.ts";
 
+import {
+  MAX_WORD_LENGTH,
+  PUZZLES as WORD_CHAIN_PUZZLES,
+  WORDS as WORD_CHAIN_WORDS,
+  acceptedPhrases,
+  puzzleFor as wordChainFor,
+  rightLines,
+  shuffledWords,
+} from "../src/puzzles/WordChain/puzzles.ts";
+
 const DAYS_BACK = 30;
 const DAYS_AHEAD = 365 * 3;
 const SEA_GLASS_DIFFICULTIES: SeaGlassDifficulty[] = ["easy", "hard"];
@@ -152,6 +162,33 @@ function checkBridges(difficulty: BridgesDifficulty, dateKey: string, checkRepea
   return null;
 }
 
+/** Word Chain's puzzles are written, not generated, so each one in the list is checked for mistakes. */
+function checkWordChainPuzzle(index: number) {
+  const { words, alsoAccept = [] } = WORD_CHAIN_PUZZLES[index];
+  if (words.length !== WORD_CHAIN_WORDS) return `has ${words.length} words, not ${WORD_CHAIN_WORDS}`;
+  const bad = words.find((w) => !/^[A-Z]+$/.test(w));
+  if (bad !== undefined) return `"${bad}" isn't one uppercase word`;
+  const long = words.find((w) => w.length > MAX_WORD_LENGTH);
+  if (long) return `"${long}" is longer than ${MAX_WORD_LENGTH} letters`;
+  if (new Set(words).size !== words.length) return "uses a word twice";
+  for (const phrase of alsoAccept) {
+    const parts = phrase.split(" ");
+    if (parts.length !== 2 || parts.some((w) => !words.includes(w))) return `extra phrase "${phrase}" isn't two of its words`;
+  }
+  return null;
+}
+
+/** The day's Word Chain: a puzzle from the list, shuffled the same way every time, and not starting solved. */
+function checkWordChainDay(dateKey: string) {
+  const puzzle = wordChainFor(dateKey);
+  const seed = `word-chain:${dateKey}`;
+  const start = shuffledWords(puzzle, seed);
+  if ([...start].sort().join() !== [...puzzle.words].sort().join()) return "starts with the wrong words";
+  if (rightLines(start, acceptedPhrases(puzzle)) > 1) return "starts with more than one line already right";
+  if (shuffledWords(puzzle, seed).join() !== start.join()) return "isn't shuffled the same every time for this date";
+  return null;
+}
+
 const started = performance.now();
 let checked = 0;
 
@@ -195,6 +232,17 @@ for (const difficulty of BRIDGES_DIFFICULTIES) {
   }
 }
 
+WORD_CHAIN_PUZZLES.forEach((_, i) => {
+  const problem = checkWordChainPuzzle(i);
+  if (problem) failures.push(`Word Chain puzzle ${i + 1} in the list: ${problem}`);
+});
+for (let offset = -DAYS_BACK; offset <= DAYS_AHEAD; offset++) {
+  const dateKey = localDateKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset));
+  const problem = checkWordChainDay(dateKey);
+  if (problem) failures.push(`Word Chain ${dateKey}: ${problem}`);
+  checked++;
+}
+
 const seconds = ((performance.now() - started) / 1000).toFixed(1);
 
 if (failures.length) {
@@ -202,5 +250,5 @@ if (failures.length) {
   process.exit(1);
 }
 console.log(
-  `All ${checked} puzzles (Sea Glass, Buoy and Bridges, Easy and Hard) have exactly one solution (${seconds}s, slowest day ${Math.round(slowestMs)}ms).`
+  `All ${checked} puzzles (Sea Glass, Buoy and Bridges at Easy and Hard, plus Word Chain) have exactly one solution (${seconds}s, slowest day ${Math.round(slowestMs)}ms).`
 );

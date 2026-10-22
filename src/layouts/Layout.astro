@@ -60,7 +60,8 @@ const { title, description, compact = false, footer = false, noindex = false } =
       Skip to content
     </a>
     <Header compact={compact} />
-    <main id="main" tabindex="-1" class="flex-1 outline-none">
+    <!-- A column, so a page's last section can sit at the bottom when the screen has room (mt-auto) -->
+    <main id="main" tabindex="-1" class="flex flex-1 flex-col outline-none">
       <slot />
     </main>
     {footer && <Footer />}

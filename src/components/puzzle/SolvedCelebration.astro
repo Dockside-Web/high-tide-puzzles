@@ -342,10 +342,15 @@ const { slug, name, icon: Icon, difficulties = [] } = Astro.props;
       ],
       { duration: 650 }
     );
-    splash.animate(
-      [{ boxShadow: `0 0 0 0 rgb(${accent} / 0.55)` }, { boxShadow: `0 0 0 18px rgb(${accent} / 0)` }],
-      { duration: 700, delay: IMPACT_MS, easing: "ease-out" }
-    );
+    // The glow follows the board's edge, so it's only for boards with a visible frame (Word Chain's
+    // pyramid sits in an invisible box, which the glow would outline)
+    // (By width: Tailwind's base styles give every element a 0-wide solid border)
+    if (parseFloat(getComputedStyle(splash).borderTopWidth) > 0) {
+      splash.animate(
+        [{ boxShadow: `0 0 0 0 rgb(${accent} / 0.55)` }, { boxShadow: `0 0 0 18px rgb(${accent} / 0)` }],
+        { duration: 700, delay: IMPACT_MS, easing: "ease-out" }
+      );
+    }
 
     const canvas = document.createElement("canvas");
     canvas.setAttribute("aria-hidden", "true");

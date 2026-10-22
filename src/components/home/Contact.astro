@@ -5,7 +5,9 @@ const linkClass =
   "inline-flex items-center gap-2 rounded-md text-sm font-medium text-ink transition-colors duration-150 ease-smooth hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60";
 ---
 
-<section id="contact" aria-labelledby="contact-heading" class="mx-auto mt-12 w-full max-w-6xl scroll-mt-24 px-6 sm:px-8">
+<!-- Sits just above the footer when the screen is tall enough to leave room; otherwise keeps a
+     3rem gap under the puzzles (padding, not margin, so mt-auto can take the spare space) -->
+<section id="contact" aria-labelledby="contact-heading" class="mx-auto mt-auto w-full max-w-6xl scroll-mt-12 px-6 pt-12 sm:px-8">
   <div class="grid gap-4 md:grid-cols-[1fr_2fr] md:gap-12">
     <div>
       <h2 id="contact-heading" class="font-display text-base font-bold tracking-tight text-ink">
