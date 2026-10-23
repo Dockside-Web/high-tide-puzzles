@@ -46,10 +46,12 @@ const indexes = Array.from({ length: SIZE }, (_, i) => i);
     ))}
   </div>
 
-  <!-- Region borders are a solid color clearly darker than shaded cells, so shading visibly stops at them -->
+  <!-- Region borders are a solid color clearly darker than shaded cells, so shading visibly stops at them.
+       The grid lines are see-through, so they show on empty and water cells alike.
+       Sized to its cells exactly (not stretched to the clue rows), so no sliver of background shows at an edge -->
   <div
-    style="--region-border: color-mix(in srgb, rgb(var(--ink)) 45%, rgb(var(--surface)))"
-    class="relative overflow-hidden rounded-xl border-2 border-(--region-border) bg-surface shadow-lg"
+    style="--region-border: color-mix(in srgb, rgb(var(--ink)) 45%, rgb(var(--surface))); --grid-line: rgb(var(--ink) / 0.14)"
+    class="relative self-start justify-self-start overflow-hidden rounded-xl border-2 border-(--region-border) bg-surface shadow-lg"
     data-splash
   >
     <!-- Shown over the board while the day's puzzle is being made -->
@@ -63,14 +65,14 @@ const indexes = Array.from({ length: SIZE }, (_, i) => i);
       data-borders
     ></svg>
 
-    <div class="grid grid-cols-9" role="group" aria-label="Buoy board">
+    <div class="grid grid-cols-[repeat(9,var(--cell))]" role="group" aria-label="Buoy board">
       {indexes.map((r) =>
         indexes.map((c) => (
           <button
             type="button"
             data-cell
             tabindex={r === 0 && c === 0 ? 0 : -1}
-            class="buoy__cell relative flex size-(--cell) cursor-pointer touch-none items-center justify-center border border-line/40 bg-surface transition-colors"
+            class="buoy__cell relative flex size-(--cell) cursor-pointer touch-none items-center justify-center bg-surface transition-colors"
           >
             <span
               class="buoy__region-clue pointer-events-none absolute top-[8%] left-[8%] z-20 text-[calc(var(--cell)*0.24)] leading-none font-bold"
@@ -111,7 +113,8 @@ const indexes = Array.from({ length: SIZE }, (_, i) => i);
 
   /* Solid (the same shade as ocean at 20% over the board) with a hair of it spilling past the
      edges: at some screen scalings neighboring cells round apart and leave a sliver of gap, which
-     would show the darker board behind as a thin line */
+     would show the board behind as a thin line. (The grid lines are drawn over the cells, so this
+     never covers them) */
   .buoy__cell[data-state="1"],
   .buoy__cell[data-state="2"] {
     --water: color-mix(in srgb, rgb(var(--ocean)) 20%, rgb(var(--surface)));
@@ -255,9 +258,14 @@ const indexes = Array.from({ length: SIZE }, (_, i) => i);
   let loadId = 0;
 
   // ---------- Drawing ----------
-  /** Region borders and the clue numbers that don't change while playing. */
+  // The thin grid, one line between each pair of cells (cells have no borders of their own, which
+  // would double up into two lines with a sliver between). Kept 1px whatever the board's size.
+  const gridPath = Array.from({ length: SIZE - 1 }, (_, i) => `M${(i + 1) * 100} 0V${SIZE * 100}M0 ${(i + 1) * 100}H${SIZE * 100}`).join("");
+  const gridLines = `<path d="${gridPath}" stroke="var(--grid-line)" stroke-width="1" vector-effect="non-scaling-stroke" />`;
+
+  /** Grid lines, region borders and the clue numbers that don't change while playing. */
   function drawPuzzle() {
-    const lines: string[] = [];
+    const lines: string[] = [gridLines];
     const line = (x1: number, y1: number, x2: number, y2: number) =>
       lines.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--region-border)" stroke-width="8" stroke-linecap="square" />`);
     puzzle.regions.forEach((g, cell) => {

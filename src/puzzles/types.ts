@@ -34,7 +34,7 @@ export interface PuzzleConfig {
   /** One short line under the name on the homepage, also the start of the page's search description */
   tagline: string;
   instructions: string;
-  /** Picture examples shown under the instructions in "How to play" (an Astro component) */
+  /** Picture examples shown under the instructions in "How to play" (an Astro component, given the puzzle's config as `puzzle`) */
   helpExamples?: any;
 
   /** Difficulty tabs. Leave empty / out to hide the tabs. */

@@ -1,6 +1,10 @@
 ---
 import type { PuzzleConfig } from "../types";
-import { WORDS, parentOf } from "./puzzles";
+import { WORDS, parentOf } from "./anchor";
+import { ANCHOR_SETS } from "./sets";
+
+// The board for both Anchor Chain (phrases) and Anchor Links (words from pieces): the same rules and
+// look, with the puzzle list picked by the puzzle's slug (see sets.ts).
 
 interface Props {
   puzzle: PuzzleConfig;
@@ -8,8 +12,9 @@ interface Props {
 }
 
 const { puzzle } = Astro.props;
+const set = ANCHOR_SETS[puzzle.slug];
 
-// The pyramid's shape only: 1-2-4-8 positions in heap order (see puzzles.ts). The day's words are
+// The board's shape only: 1-2-4-8 positions in heap order (see anchor.ts). The day's tiles are
 // filled in by the script from the player's local date, so the answer is never in the page.
 const positions = Array.from({ length: WORDS }, (_, p) => p);
 const rows = [0, 1, 2, 3].map((r) => positions.filter((p) => p >= 2 ** r - 1 && p < 2 ** (r + 1) - 1));
@@ -22,30 +27,30 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
   - Drag a word to move it, or tap a word and then tap where it should go. A linked word carries
     its whole linked group, which can only land on its own spaces or unlinked words (those slide
     into the spaces the group left). A word may switch to the other side under its parent if needed.
-  - Check (the button under the pyramid) tests every link: correct ones turn green and lock for good, wrong ones flash and come undone.
+  - Check (the button under the board) tests every link: correct ones turn green and lock for good, wrong ones flash and come undone.
     There are 3 checks. After that the button becomes "Final check", which grades the whole
-    pyramid: all right is solved, anything wrong ends the game.
+    board: all right is solved, anything wrong ends the game.
   Keyboard: arrow keys move between words, Space or Enter picks a word up and puts it down,
   Shift+Left/Right links the word to the one below on that side, Shift+Up to the one above.
   The board, links, checks left and result are saved per day, so a refresh picks up where it was.
 -->
-<div class="pyramid" data-word-chain-root data-splash data-slug={puzzle.slug}>
-  <svg class="pyramid__lines" data-edges-svg aria-hidden="true">
+<div class="anchor" data-anchor-root data-splash data-slug={puzzle.slug}>
+  <svg class="anchor__lines" data-edges-svg aria-hidden="true">
     {edges.map(({ parent, child }) => (
       <g data-edge-group data-parent={parent} data-child={child}>
-        <path data-edge class="pyramid__edge" pathLength="1" />
-        <path data-break-ticks class="pyramid__break-ticks" />
-        <path class="pyramid__edge-fill" pathLength="1" />
-        <path data-edge-hit class="pyramid__edge-hit" />
+        <path data-edge class="anchor__edge" pathLength="1" />
+        <path data-break-ticks class="anchor__break-ticks" />
+        <path class="anchor__edge-fill" pathLength="1" />
+        <path data-edge-hit class="anchor__edge-hit" />
       </g>
     ))}
   </svg>
 
-  <div class="pyramid__rows" role="group" aria-label="Word pyramid">
+  <div class="anchor__rows" role="group" aria-label={`Board of ${set.tile}s`}>
     {rows.map((row, r) => (
-      <div class="pyramid__row" style={`--cols: ${row.length}`}>
+      <div class="anchor__row" style={`--cols: ${row.length}`}>
         {row.map((p) => (
-          <button type="button" data-tile data-id={p} data-row={r} tabindex={p === 0 ? 0 : -1} class="pyramid__tile">
+          <button type="button" data-tile data-id={p} data-row={r} tabindex={p === 0 ? 0 : -1} class="anchor__tile">
             <span data-text></span>
           </button>
         ))}
@@ -55,25 +60,25 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
 </div>
 
 <!--
-  Word Chain is the only puzzle that doesn't finish by itself, so Check sits right under the board
+  These are the only puzzles that don't finish by themselves, so Check sits right under the board
   rather than in the toolbar: outlined while there's nothing new to check, filled in the puzzle's
   color once there is, with a dot for each check left. After the 3 checks it becomes the final check.
 -->
-<div class="word-chain__check-row">
-  <button type="button" class="word-chain__check" data-check-button disabled>
-    <span data-check-label>Link words to check</span>
-    <span class="word-chain__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+<div class="anchor__check-row">
+  <button type="button" class="anchor__check" data-check-button disabled>
+    <span data-check-label>Link {set.tile}s to check</span>
+    <span class="anchor__dots" aria-hidden="true"><i></i><i></i><i></i></span>
   </button>
 </div>
 
 <style>
-  .word-chain__check-row {
+  .anchor__check-row {
     display: flex;
     justify-content: center;
     margin-top: 0.25rem;
   }
 
-  .word-chain__check {
+  .anchor__check {
     display: inline-flex;
     align-items: center;
     gap: 0.6rem;
@@ -88,44 +93,44 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
     transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
   }
 
-  .word-chain__check:disabled {
+  .anchor__check:disabled {
     border-color: rgb(var(--line));
     color: rgb(var(--muted));
     cursor: default;
   }
 
-  .word-chain__check.is-ready {
+  .anchor__check.is-ready {
     background: rgb(var(--puzzle-strong));
     color: rgb(var(--on-color));
   }
 
-  .word-chain__check.is-final {
+  .anchor__check.is-final {
     border-color: rgb(var(--coral-strong));
     color: rgb(var(--coral-strong));
   }
 
-  .word-chain__check.is-final.is-ready {
+  .anchor__check.is-final.is-ready {
     background: rgb(var(--coral-strong));
     color: rgb(var(--on-color));
   }
 
   /* Once the game is over it steps aside (keeping its space, so nothing jumps) */
-  .word-chain__check.is-hidden {
+  .anchor__check.is-hidden {
     visibility: hidden;
   }
 
-  .word-chain__check:focus-visible {
+  .anchor__check:focus-visible {
     outline: 3px solid rgb(var(--puzzle-strong) / 0.5);
     outline-offset: 2px;
   }
 
   /* One dot per check left */
-  .word-chain__dots {
+  .anchor__dots {
     display: inline-flex;
     gap: 0.25rem;
   }
 
-  .word-chain__dots i {
+  .anchor__dots i {
     width: 0.4rem;
     height: 0.4rem;
     border-radius: 50%;
@@ -133,16 +138,16 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
     transition: opacity 0.2s ease;
   }
 
-  .word-chain__dots i.is-spent {
+  .anchor__dots i.is-spent {
     opacity: 0.25;
   }
 
-  .word-chain__check.is-final .word-chain__dots {
+  .anchor__check.is-final .anchor__dots {
     display: none;
   }
 
   /* A small pop the moment there's something to check */
-  .word-chain__check.is-popping {
+  .anchor__check.is-popping {
     animation: check-pop 0.3s ease-out;
   }
 
@@ -151,14 +156,14 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .word-chain__check.is-popping {
+    .anchor__check.is-popping {
       animation: none;
     }
   }
 </style>
 
 <style>
-  .pyramid {
+  .anchor {
     --line-idle: rgb(var(--ink) / 0.2);
     --line-hover: rgb(var(--ink) / 0.45);
     --line-active: rgb(var(--sun));
@@ -171,7 +176,7 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
     box-sizing: border-box;
   }
 
-  .pyramid__lines {
+  .anchor__lines {
     position: absolute;
     inset: 0;
     width: 100%;
@@ -182,7 +187,7 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
   }
 
   /* Wide invisible stroke so lines are easy to click */
-  .pyramid__edge-hit {
+  .anchor__edge-hit {
     fill: none;
     stroke: transparent;
     stroke-width: 22px;
@@ -191,7 +196,7 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
     cursor: pointer;
   }
 
-  .pyramid__edge {
+  .anchor__edge {
     fill: none;
     stroke: var(--line-idle);
     stroke-width: 2;
@@ -200,20 +205,20 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
     transition: stroke 0.15s ease, stroke-width 0.15s ease;
   }
 
-  [data-edge-group]:hover .pyramid__edge {
+  [data-edge-group]:hover .anchor__edge {
     stroke: var(--line-hover);
     stroke-width: 2.5;
   }
 
   /* Already checked and wrong: wherever these two words meet, the line shows snapped in the
      middle (it can't be linked again, so it never costs another check) */
-  [data-edge-group].is-known-wrong .pyramid__edge {
+  [data-edge-group].is-known-wrong .anchor__edge {
     /* The break sits in the middle of the part showing between the words (set by drawEdges) */
     stroke-dasharray: var(--break-at, 0.42) var(--break-gap, 0.16) 1;
   }
 
   /* The crossbars at each end of the break, like a snapped line */
-  .pyramid__break-ticks {
+  .anchor__break-ticks {
     display: none;
     fill: none;
     stroke: var(--line-idle);
@@ -223,28 +228,28 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
     transition: stroke 0.15s ease;
   }
 
-  [data-edge-group].is-known-wrong .pyramid__break-ticks {
+  [data-edge-group].is-known-wrong .anchor__break-ticks {
     display: inline;
   }
 
-  [data-edge-group]:hover .pyramid__break-ticks {
+  [data-edge-group]:hover .anchor__break-ticks {
     stroke: var(--line-hover);
   }
 
-  [data-edge-group].is-known-wrong .pyramid__edge-hit {
+  [data-edge-group].is-known-wrong .anchor__edge-hit {
     cursor: not-allowed;
   }
 
   /* Tapped anyway: a short flash */
-  [data-edge-group].is-refused .pyramid__edge,
-  [data-edge-group].is-refused .pyramid__break-ticks {
-    animation: pyramid-wrong 0.6s ease;
+  [data-edge-group].is-refused .anchor__edge,
+  [data-edge-group].is-refused .anchor__break-ticks {
+    animation: anchor-wrong 0.6s ease;
   }
 
   /* A link is a colored line over the grey one. Each path runs from the upper word down to the
      lower one, so growing the dash (offset 1 -> 0) draws it downward when linking, and shrinking it
      pulls it back up from the lower word when unlinking. Butt caps, so an empty dash leaves no dot. */
-  .pyramid__edge-fill {
+  .anchor__edge-fill {
     fill: none;
     stroke: var(--line-active);
     stroke-width: 4;
@@ -255,56 +260,56 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
     transition: stroke-dashoffset 0.35s ease-in-out, stroke 0.15s ease;
   }
 
-  [data-edge-group].is-active .pyramid__edge-fill,
-  [data-edge-group].is-locked .pyramid__edge-fill,
-  [data-edge-group].is-failed .pyramid__edge-fill {
+  [data-edge-group].is-active .anchor__edge-fill,
+  [data-edge-group].is-locked .anchor__edge-fill,
+  [data-edge-group].is-failed .anchor__edge-fill {
     stroke-dashoffset: 0;
   }
 
   /* Checked and correct: green, and the line can't be tapped off any more */
-  [data-edge-group].is-locked .pyramid__edge-fill {
+  [data-edge-group].is-locked .anchor__edge-fill {
     stroke: rgb(var(--seafoam-strong));
   }
 
-  [data-edge-group].is-locked .pyramid__edge-hit {
+  [data-edge-group].is-locked .anchor__edge-hit {
     pointer-events: none;
   }
 
   /* Checked and wrong: a short coral flash */
-  [data-edge-group].is-wrong .pyramid__edge-fill {
+  [data-edge-group].is-wrong .anchor__edge-fill {
     stroke: rgb(var(--coral-strong));
-    animation: pyramid-wrong 0.6s ease;
+    animation: anchor-wrong 0.6s ease;
   }
 
   /* Final check failed: wrong lines draw in coral and stay */
-  [data-edge-group].is-failed .pyramid__edge-fill {
+  [data-edge-group].is-failed .anchor__edge-fill {
     stroke: rgb(var(--coral-strong));
   }
 
   /* No drawing when a saved board first appears */
-  .pyramid.no-draw .pyramid__edge-fill {
+  .anchor.no-draw .anchor__edge-fill {
     transition: none;
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .pyramid__edge-fill {
+    .anchor__edge-fill {
       transition: stroke 0.15s ease;
     }
   }
 
   /* Game over (solved or failed): the board can't be changed */
-  .pyramid.is-over .pyramid__tile,
-  .pyramid.is-over .pyramid__edge-hit {
+  .anchor.is-over .anchor__tile,
+  .anchor.is-over .anchor__edge-hit {
     pointer-events: none;
   }
 
-  @keyframes pyramid-wrong {
+  @keyframes anchor-wrong {
     0%, 50% { opacity: 1; }
     25%, 75% { opacity: 0.35; }
   }
 
   /* Rows are a container so tiles can size off the full board width */
-  .pyramid__rows {
+  .anchor__rows {
     position: relative;
     z-index: 1;
     pointer-events: none; /* let clicks reach the lines behind; tiles opt back in */
@@ -319,14 +324,14 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
 
   /* Each row splits the width into equal columns with the same gap,
      which puts every parent exactly centered over its two children */
-  .pyramid__row {
+  .anchor__row {
     display: grid;
     grid-template-columns: repeat(var(--cols), 1fr);
     column-gap: var(--gap);
     justify-items: center;
   }
 
-  .pyramid__tile {
+  .anchor__tile {
     position: relative;
     box-sizing: border-box;
     display: inline-flex;
@@ -355,41 +360,41 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
     transition: border-color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
   }
 
-  .pyramid__tile:focus {
+  .anchor__tile:focus {
     outline: none;
   }
 
-  .pyramid__tile:focus-visible {
+  .anchor__tile:focus-visible {
     outline: 3px solid rgb(var(--puzzle-strong));
     outline-offset: 2px;
   }
 
-  .pyramid__tile:active {
+  .anchor__tile:active {
     cursor: grabbing;
   }
 
-  .pyramid__tile.is-locked {
+  .anchor__tile.is-locked {
     border-color: rgb(var(--seafoam-strong));
     background: color-mix(in srgb, rgb(var(--seafoam)) 18%, rgb(var(--surface)));
   }
 
   /* Picked up by a tap (with its linked group), waiting for a tap on where it goes */
-  .pyramid__tile.is-selected {
+  .anchor__tile.is-selected {
     border-color: rgb(var(--puzzle-strong));
     background: color-mix(in srgb, rgb(var(--puzzle)) 22%, rgb(var(--surface)));
   }
 
-  .pyramid__tile.is-drop-target {
+  .anchor__tile.is-drop-target {
     border-color: rgb(var(--drop));
     background: color-mix(in srgb, rgb(var(--drop)) 14%, rgb(var(--surface)));
   }
 
-  .pyramid__tile.is-dragging {
+  .anchor__tile.is-dragging {
     opacity: 0.3;
   }
 
   /* Fixed CSS for smooth dragging without top-left jump */
-  :global(.pyramid__drag-ghost) {
+  :global(.anchor__drag-ghost) {
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
@@ -404,10 +409,11 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
 
 <script>
   import { forgetOldProgress, loadProgress, localDateKey, saveProgress } from "../daily";
-  import { WORDS, acceptedPhrases, parentOf, puzzleFor, shuffledWords } from "./puzzles";
+  import { WORDS, acceptedLines, lineText, parentOf, puzzleFor, shuffledWords } from "./anchor";
+  import { ANCHOR_SETS } from "./sets";
 
   const CHECKS = 3;
-  /** Word Chain has one difficulty; progress and stats are kept under this name */
+  /** These games have one difficulty; progress and stats are kept under this name */
   const DIFFICULTY = "default";
   const LAST = WORDS - 1;
 
@@ -427,8 +433,9 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
 
   const rowOf = (p: number) => Math.floor(Math.log2(p + 1));
 
-  function initPyramid(root: HTMLElement) {
+  function initBoard(root: HTMLElement) {
     const slug = root.dataset.slug!;
+    const set = ANCHOR_SETS[slug];
     const svg = root.querySelector<SVGSVGElement>("[data-edges-svg]")!;
     const tiles = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-tile]")); // in position order
     const edgeGroups = Array.from(root.querySelectorAll<SVGGElement>("[data-edge-group]"));
@@ -436,7 +443,8 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
     const edgeGroupFor = (child: number) => edgeGroups[child - 1];
 
     let dateKey = localDateKey();
-    let phrases = new Set<string>();
+    /** Every line that counts as right today, as it reads */
+    let lines = new Set<string>();
     /** The word in each position */
     let words: string[] = [];
     // A link is stored by its child position (every position below the top has exactly one parent)
@@ -456,9 +464,9 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
 
     const over = () => status !== "playing";
     const remember = () => undoStack.push({ words: words.slice(), links: [...links], locked: [...locked] });
-    /** The "UPPER LOWER" pair a line joins right now */
+    /** The "UPPER LOWER" pair a line joins right now (a key for wrongPairs, with a space whatever the game) */
     const pairAt = (child: number) => `${words[parentOf(child)]} ${words[child]}`;
-    const isRight = (child: number) => phrases.has(pairAt(child));
+    const isRight = (child: number) => lines.has(lineText(set, words[parentOf(child)], words[child]));
     const knownWrong = (child: number) => wrongPairs.has(pairAt(child));
 
     function save() {
@@ -631,7 +639,7 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
           : "Final check"
         : pending
           ? "Check"
-          : "Link words to check";
+          : `Link ${set.tile}s to check`;
       checkDots.forEach((dot, i) => dot.classList.toggle("is-spent", i >= checksLeft));
       checkButton.setAttribute(
         "aria-label",
@@ -650,7 +658,7 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
       else
         window.dispatchEvent(
           new CustomEvent("puzzle:failed", {
-            detail: { message: "The final check found phrases that don't fit. The wrong lines are marked in coral." },
+            detail: { message: `The final check found ${set.makes}s that don't fit. The wrong lines are marked in coral.` },
           })
         );
     }
@@ -689,7 +697,7 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
       save();
     }
 
-    /** After the 3 checks: the whole pyramid has to be right, linked or not */
+    /** After the 3 checks: the whole board has to be right, linked or not */
     function finalCheck() {
       for (let child = 1; child <= LAST; child++) {
         if (!isRight(child)) continue;
@@ -723,7 +731,7 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
      */
     function hint() {
       const inLockedLine = (p: number) => locked.has(p) || locked.has(2 * p + 1) || locked.has(2 * p + 2);
-      const answer = puzzleFor(dateKey).words;
+      const answer = puzzleFor(set, dateKey).words;
       for (let child = 1; child <= LAST; child++) {
         const upper = answer[parentOf(child)];
         const lower = answer[child];
@@ -758,7 +766,7 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
     // The whole answer drawn in, then the board locks (no celebration)
     window.addEventListener("puzzle:reveal", () => {
       if (over()) return;
-      words = puzzleFor(dateKey).words.slice();
+      words = puzzleFor(set, dateKey).words.slice();
       for (let child = 1; child <= LAST; child++) {
         links.add(child);
         locked.add(child);
@@ -779,7 +787,7 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
         seconds = 0;
         window.dispatchEvent(new Event("puzzle:timer-reset"));
       }
-      words = shuffledWords(puzzleFor(dateKey), `${slug}:${dateKey}`);
+      words = shuffledWords(set, puzzleFor(set, dateKey), `${slug}:${dateKey}`);
       links.clear();
       locked.clear();
       wrongPairs.clear();
@@ -1020,7 +1028,7 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
             const src = tileAt(p);
             const rect = src.getBoundingClientRect();
             const el = src.cloneNode(true) as HTMLElement;
-            el.classList.add("pyramid__drag-ghost");
+            el.classList.add("anchor__drag-ghost");
             el.removeAttribute("data-tile");
             el.style.width = `${rect.width}px`;
             el.style.height = `${rect.height}px`;
@@ -1109,8 +1117,8 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
     function load() {
       root.classList.add("no-draw");
       requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove("no-draw")));
-      const puzzle = puzzleFor(dateKey);
-      phrases = acceptedPhrases(puzzle);
+      const puzzle = puzzleFor(set, dateKey);
+      lines = acceptedLines(set, puzzle);
       links.clear();
       locked.clear();
       wrongPairs.clear();
@@ -1133,7 +1141,7 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
           new CustomEvent("puzzle:timer-set", { detail: { seconds, running: status === "playing" } })
         );
       } else {
-        words = shuffledWords(puzzle, `${slug}:${dateKey}`);
+        words = shuffledWords(set, puzzle, `${slug}:${dateKey}`);
         checksLeft = CHECKS;
         status = "playing";
         seconds = 0;
@@ -1175,5 +1183,5 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
     load();
   }
 
-  document.querySelectorAll<HTMLElement>("[data-word-chain-root]").forEach(initPyramid);
+  document.querySelectorAll<HTMLElement>("[data-anchor-root]").forEach(initBoard);
 </script>

@@ -1,41 +1,16 @@
 ---
-// Picture examples for Word Chain's "How to play": little pieces of the pyramid drawn like the real
-// board, each marked as allowed or not. The line being checked is colored: seafoam works, coral doesn't.
+// Picture examples for "How to play" in Anchor Chain and Anchor Links: little pieces of the board
+// drawn like the real one, each marked as allowed or not. The line being checked is colored:
+// seafoam works, coral doesn't. The examples come from the game's set (its puzzles.ts).
 
-interface Example {
-  ok: boolean;
-  caption: string;
-  top: string;
-  /** Words under `top`, each with whether its line makes a phrase */
-  below: { word: string; ok: boolean }[];
+import type { PuzzleConfig } from "../types";
+import { ANCHOR_SETS } from "./sets";
+
+interface Props {
+  puzzle: PuzzleConfig;
 }
 
-const examples: Example[] = [
-  {
-    ok: true,
-    caption: "Upper word first: “high tide”",
-    top: "HIGH",
-    below: [{ word: "TIDE", ok: true }],
-  },
-  {
-    ok: false,
-    caption: "Upside down: “tide high”",
-    top: "TIDE",
-    below: [{ word: "HIGH", ok: false }],
-  },
-  {
-    ok: true,
-    caption: "Both words below pair with it",
-    top: "TIDE",
-    below: [{ word: "POOL", ok: true }, { word: "CHART", ok: true }],
-  },
-  {
-    ok: false,
-    caption: "One pair isn’t a phrase",
-    top: "TIDE",
-    below: [{ word: "POOL", ok: true }, { word: "BOAT", ok: false }],
-  },
-];
+const { examples } = ANCHOR_SETS[Astro.props.puzzle.slug];
 
 // Board pieces in a 200 × 110 box: one word on top, one or two below it
 const W = 80;
@@ -57,7 +32,7 @@ function line(x2: number) {
 }
 ---
 
-<div class="word-chain-help mt-5">
+<div class="anchor-help mt-5">
   <p class="text-sm font-semibold text-ink">Examples</p>
 
   <ul class="mt-3 grid grid-cols-2 gap-2.5">
@@ -94,9 +69,7 @@ function line(x2: number) {
     ))}
   </ul>
 
-  <p class="mt-4 text-xs leading-relaxed text-muted">
-    Tip: start with words that only pair one way, then tap their line to link them so they stay together.
-  </p>
+  <p class="mt-4 text-xs leading-relaxed text-muted">Tip: link pairs you’re sure of so they move together.</p>
 </div>
 
 <style>

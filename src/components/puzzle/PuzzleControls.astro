@@ -26,6 +26,7 @@ const optionClass =
     {difficulties.map((diff, index) => (
       <button type="button" class={optionClass} data-value={diff.id} aria-pressed={index === 0 ? "true" : "false"}>
         {diff.label}
+        <span class="text-xs" data-tab-done hidden><span aria-hidden="true">✓</span><span class="sr-only">(solved)</span></span>
       </button>
     ))}
     {difficulties.length > 0 && (
@@ -109,11 +110,12 @@ const optionClass =
         options.forEach((o) => o.setAttribute("aria-pressed", String(o === option)));
         placeUnderline();
 
+        // Timer reset first: a saved board the puzzle restores right away then sets its own time
         switchBoard(() => {
+          window.dispatchEvent(new Event("puzzle:timer-reset"));
           window.dispatchEvent(
             new CustomEvent(group.dataset.event!, { detail: { value: option.dataset.value } })
           );
-          window.dispatchEvent(new Event("puzzle:timer-reset"));
         });
       });
     });

@@ -6,6 +6,7 @@ import PauseOverlay from "../components/puzzle/PauseOverlay.astro";
 import Toolbar from "../components/puzzle/Toolbar.astro";
 import HelpModal from "../components/puzzle/HelpModal.astro";
 import SolvedCelebration from "../components/puzzle/SolvedCelebration.astro";
+import FinishedStatus from "../components/puzzle/FinishedStatus.astro";
 import { puzzleColorStyle, type PuzzleConfig } from "../puzzles/types";
 
 // Shared wrapper for every puzzle page. The puzzle itself goes in the slot;
@@ -50,6 +51,9 @@ const description = `${puzzle.tagline} A new ${name} puzzle every day, free to p
       {timer && <PauseOverlay />}
     </div>
 
+    <!-- "✓ Solved in 04:12 · View results" once the board is finished -->
+    <FinishedStatus slug={puzzle.slug} />
+
     {toolbar && (
       <div class="mt-6 sm:mt-8" data-float>
         <Toolbar config={toolbar} />
@@ -57,7 +61,7 @@ const description = `${puzzle.tagline} A new ${name} puzzle every day, free to p
     )}
 
     <HelpModal slug={puzzle.slug} name={name} icon={icon} instructions={instructions}>
-      {HelpExamples && <HelpExamples />}
+      {HelpExamples && <HelpExamples puzzle={puzzle} />}
     </HelpModal>
     <!-- Every puzzle finishes the same way: fire "puzzle:solved" and this takes it from there -->
     <SolvedCelebration slug={puzzle.slug} name={name} icon={icon} difficulties={difficulties} />

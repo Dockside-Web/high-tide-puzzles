@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- An anchor with its chain running off the ring, in the same two-tone brass as Anchor Links'
+       chain (dark edge, brass core) so the two read as a pair on light and dark backgrounds. -->
+
+  <!-- Chain: flat links and edge-on links, alternating, trailing up and left from the ring -->
+  <g transform="rotate(14 40 15)">
+    <g fill="none">
+      <rect x="10" y="9" width="17" height="12" rx="6" stroke="#1c2433" stroke-width="6"/>
+      <rect x="10" y="9" width="17" height="12" rx="6" stroke="#e3a43f" stroke-width="2.8"/>
+    </g>
+    <rect x="4" y="12" width="11" height="6" rx="3" fill="#f4d394" stroke="#1c2433" stroke-width="2.4"/>
+    <rect x="23" y="12" width="14" height="6" rx="3" fill="#f4d394" stroke="#1c2433" stroke-width="2.4"/>
+  </g>
+
+  <!-- Anchor: ring, shank, stock and curved arms with flukes -->
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke="#1c2433" stroke-width="8">
+      <circle cx="40" cy="15" r="5"/>
+      <path d="M40 21V56M31 29H49M24 41C25 52 32 57 40 57C48 57 55 52 56 41"/>
+      <path d="M20 45L24 39L29 43M60 45L56 39L51 43"/>
+    </g>
+    <g stroke="#e3a43f" stroke-width="4">
+      <circle cx="40" cy="15" r="5"/>
+      <path d="M40 21V56M31 29H49M24 41C25 52 32 57 40 57C48 57 55 52 56 41"/>
+      <path d="M20 45L24 39L29 43M60 45L56 39L51 43"/>
+    </g>
+    <!-- Highlights -->
+    <path d="M38.5 31V50M33 27.5H38" stroke="#ffffff" stroke-opacity="0.5" stroke-width="1.6"/>
+  </g>
+</svg>

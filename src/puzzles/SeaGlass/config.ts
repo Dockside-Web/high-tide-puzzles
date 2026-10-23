@@ -11,7 +11,7 @@ const config: PuzzleConfig = {
   color: "seafoam",
   tagline: "Fit the tiles so every edge matches.",
   instructions:
-    "Drag every tile from the bank onto the board. Wherever two tiles touch, the edges must be the same color, and every edge on the outside of the board must be black. Tiles can't be rotated; drop one tile on another to swap them.",
+    "Drag the tiles onto the board so touching edges match and the outside edge is black. Drop a tile on another to swap them.",
   helpExamples: SeaGlassHelp,
   difficulties: [
     { id: "easy", label: "Easy" },

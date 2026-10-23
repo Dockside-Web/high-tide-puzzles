@@ -1,0 +1,112 @@
+---
+interface Props {
+  slug: string;
+}
+
+const { slug } = Astro.props;
+
+// Keeps a finished board looking finished after the solved card is closed (or on coming back to it
+// later): a line under the board ("✓ Solved in 04:12 · View results"), a ✓ on each difficulty tab
+// solved today, and the toolbar cut down to Reset, since nothing else does anything on a finished board.
+// Works from the shared events plus each puzzle's saved board, so puzzles don't have to do anything.
+// Listens for: puzzle:solved, puzzle:revealed, puzzle:failed, puzzle:timer-set (a saved board was
+// restored), puzzle:timer-reset (a new board was loaded, or Reset)
+// Sends: puzzle:show-results (SolvedCelebration opens its card again)
+---
+
+<p class="mt-5 hidden items-center justify-center gap-2 text-sm font-semibold" aria-live="polite" data-slug={slug} data-finished-status>
+  <span data-finished-text></span>
+  <span class="text-line" aria-hidden="true" data-finished-sep>·</span>
+  <button
+    type="button"
+    class="cursor-pointer text-muted underline-offset-4 transition-colors hover:text-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-puzzle"
+    data-finished-results
+  >
+    View results
+  </button>
+</p>
+
+<script>
+  import { loadProgress, localDateKey } from "../../puzzles/daily";
+
+  type State = "playing" | "solved" | "revealed" | "failed";
+
+  const line = document.querySelector<HTMLElement>("[data-finished-status]")!;
+  const text = line.querySelector<HTMLElement>("[data-finished-text]")!;
+  const sep = line.querySelector<HTMLElement>("[data-finished-sep]")!;
+  const resultsBtn = line.querySelector<HTMLButtonElement>("[data-finished-results]")!;
+  const slug = line.dataset.slug!;
+
+  let state: State = "playing";
+  let seconds: number | null = null;
+
+  const formatTime = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+  /** "03:12" off the timer, as seconds (null if there's no timer) */
+  const readTimer = () => {
+    const [m, sec] = (document.getElementById("timer-display")?.textContent ?? "").split(":").map(Number);
+    return Number.isFinite(m) && Number.isFinite(sec) ? m * 60 + sec : null;
+  };
+  const tabs = () => Array.from(document.querySelectorAll<HTMLElement>('[data-event="puzzle:difficulty-change"] [data-value]'));
+  const currentDifficulty = () => tabs().find((t) => t.getAttribute("aria-pressed") === "true")?.dataset.value ?? "default";
+  const saved = (difficulty: string) =>
+    loadProgress<{ status?: string; seconds?: number }>(slug, difficulty, localDateKey());
+
+  function render() {
+    const finished = state !== "playing";
+    line.classList.toggle("hidden", !finished);
+    line.classList.toggle("flex", finished);
+    line.classList.toggle("text-puzzle-strong", state === "solved");
+    line.classList.toggle("text-muted", state !== "solved");
+    text.textContent =
+      state === "solved"
+        ? `✓ Solved${seconds !== null ? ` in ${formatTime(seconds)}` : ""}`
+        : state === "revealed"
+          ? "Solution revealed"
+          : "Not solved today";
+    // A revealed board has no results card to go back to
+    sep.hidden = resultsBtn.hidden = state === "revealed";
+
+    document.querySelectorAll<HTMLButtonElement>("[data-action]:not([data-action='reset'])").forEach((b) => (b.hidden = finished));
+
+    const current = currentDifficulty();
+    tabs().forEach((tab) => {
+      const done = tab.dataset.value === current ? state === "solved" : saved(tab.dataset.value!)?.status === "solved";
+      tab.querySelector<HTMLElement>("[data-tab-done]")!.hidden = !done;
+    });
+  }
+
+  /** The current board as saved, for a board restored on load or on switching tabs. */
+  function fromSaved() {
+    const game = saved(currentDifficulty());
+    const status = game?.status;
+    state = status === "solved" || status === "revealed" || status === "failed" ? status : "playing";
+    seconds = game?.seconds ?? null;
+    render();
+  }
+
+  window.addEventListener("puzzle:solved", () => {
+    state = "solved";
+    seconds = readTimer();
+    render();
+  });
+  window.addEventListener("puzzle:revealed", () => {
+    state = "revealed";
+    render();
+  });
+  window.addEventListener("puzzle:failed", () => {
+    state = "failed";
+    render();
+  });
+  window.addEventListener("puzzle:timer-set", fromSaved);
+  window.addEventListener("puzzle:timer-reset", () => {
+    state = "playing";
+    render();
+  });
+
+  resultsBtn.addEventListener("click", () => {
+    window.dispatchEvent(new CustomEvent("puzzle:show-results", { detail: { failed: state === "failed" } }));
+  });
+
+  // The puzzle may already have restored its board before this ran
+  fromSaved();
+</script>

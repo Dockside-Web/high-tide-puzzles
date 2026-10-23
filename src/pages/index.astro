@@ -4,7 +4,7 @@ import DailyPuzzles from "../components/home/DailyPuzzles.astro";
 import Contact from "../components/home/Contact.astro";
 import { PUZZLE_LIST } from "../puzzles";
 
-// Names the puzzles, since that's what people search for ("Bridges, Sea Glass and Word Chain")
+// Names the puzzles, since that's what people search for ("Bridges, Sea Glass and Anchor Chain")
 const names = PUZZLE_LIST.filter((p) => !p.comingSoon).map((p) => p.name);
 const nameList = `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
 const metaDescription = `Free daily puzzles: ${nameList}. A new challenge every day, no sign-up needed.`;

@@ -61,7 +61,7 @@ const iconButtonClass =
   // and load that date's puzzle, and the timer starts over.
   onNewDay((dateKey) => {
     showDate();
-    window.dispatchEvent(new CustomEvent("puzzle:new-day", { detail: { dateKey } }));
     window.dispatchEvent(new Event("puzzle:timer-reset"));
+    window.dispatchEvent(new CustomEvent("puzzle:new-day", { detail: { dateKey } }));
   });
 </script>

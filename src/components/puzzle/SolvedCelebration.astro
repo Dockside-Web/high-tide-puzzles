@@ -9,7 +9,8 @@ import type { Difficulty } from "../../puzzles/types";
 // card, without the celebration.
 // On a puzzle with more than one difficulty, a win suggests the next one not yet finished today
 // ("Try Hard"), and shows which are done.
-// Listens for: puzzle:solved (show), puzzle:failed (show, lost), puzzle:timer-reset (a new board was loaded, so hide)
+// Listens for: puzzle:solved (show), puzzle:failed (show, lost), puzzle:timer-reset (a new board was loaded, so hide),
+// puzzle:show-results (show again, from FinishedStatus's "View results")
 
 interface Props {
   slug: string;
@@ -41,7 +42,6 @@ const { slug, name, icon: Icon, difficulties = [] } = Astro.props;
     <!-- Finish time, filled in from the timer (hidden on puzzles without one) -->
     <div class="mt-5 hidden" data-solved-time-row>
       <p class="font-mono text-4xl font-bold tabular-nums text-ink" data-solved-time></p>
-      <p class="mt-1 text-xs font-semibold tracking-wide text-muted uppercase">Your time</p>
       <!-- Against past times: "New best! Previous 03:40", or "Best 02:40 · Yesterday 03:12" -->
       <p class="mt-2 hidden text-sm font-semibold text-muted" data-solved-compare></p>
     </div>
@@ -126,7 +126,7 @@ const { slug, name, icon: Icon, difficulties = [] } = Astro.props;
 
 <script>
   import { loadProgress, localDateKey } from "../../puzzles/daily";
-  import { recordSolve, type SolveResult } from "../../puzzles/stats";
+  import { currentStreak, recordSolve, type SolveResult } from "../../puzzles/stats";
 
   const CHEERS = [
     "Shipshape!",
@@ -157,7 +157,7 @@ const { slug, name, icon: Icon, difficulties = [] } = Astro.props;
   const slug = overlay.dataset.slug!;
   const difficulties: { id: string; label: string }[] = JSON.parse(overlay.dataset.difficulties || "[]");
   let nextDifficulty: string | null = null;
-  /** The stats from the solve being shown (null for a loss) */
+  /** The stats from the solve being shown (null for a loss, or a board restored from earlier) */
   let result: SolveResult | null = null;
   let nextDayTimer = 0;
 
@@ -181,7 +181,7 @@ const { slug, name, icon: Icon, difficulties = [] } = Astro.props;
   }
 
   /** The line under the time, and the streak. */
-  function showStats(seconds: number | null) {
+  function showStats(seconds: number | null, failed: boolean) {
     let line = "";
     if (result && seconds !== null) {
       const best = result.previousBest;
@@ -196,7 +196,7 @@ const { slug, name, icon: Icon, difficulties = [] } = Astro.props;
     compare.classList.toggle("hidden", !line);
     compare.classList.toggle("text-puzzle-strong", !!result?.newBest);
 
-    const streak = result?.streak ?? 0;
+    const streak = failed ? 0 : (result?.streak ?? currentStreak(slug));
     streakText.textContent = `${streak}-day streak`;
     streakRow.classList.toggle("hidden", !streak);
     streakRow.classList.toggle("flex", !!streak);
@@ -252,7 +252,8 @@ const { slug, name, icon: Icon, difficulties = [] } = Astro.props;
   function open(failMessage?: string) {
     // Read the finish time and difficulty straight off the page's timer and difficulty tabs
     const finishTime = document.getElementById("timer-display")?.textContent;
-    const difficulty = document.querySelector('[data-event="puzzle:difficulty-change"] [aria-pressed="true"]')?.textContent?.trim();
+    // By id, not the tab's text, which also holds its solved ✓
+    const difficulty = difficulties.find(({ id }) => id === currentDifficulty())?.label;
     const puzzleName = `${difficulty ? `${difficulty} ` : ""}${overlay.dataset.name}`;
     const failed = failMessage !== undefined;
 
@@ -263,7 +264,7 @@ const { slug, name, icon: Icon, difficulties = [] } = Astro.props;
       : `You finished today's ${puzzleName}.`;
     timeRow.classList.toggle("hidden", !finishTime || failed);
     time.textContent = finishTime ?? "";
-    showStats(failed ? null : readTimer());
+    showStats(failed ? null : readTimer(), failed);
     showDifficulties(!failed);
     showNextDay();
     window.clearInterval(nextDayTimer);
@@ -342,8 +343,8 @@ const { slug, name, icon: Icon, difficulties = [] } = Astro.props;
       ],
       { duration: 650 }
     );
-    // The glow follows the board's edge, so it's only for boards with a visible frame (Word Chain's
-    // pyramid sits in an invisible box, which the glow would outline)
+    // The glow follows the board's edge, so it's only for boards with a visible frame (the Anchor games'
+    // board sits in an invisible box, which the glow would outline)
     // (By width: Tailwind's base styles give every element a 0-wide solid border)
     if (parseFloat(getComputedStyle(splash).borderTopWidth) > 0) {
       splash.animate(
@@ -480,7 +481,18 @@ const { slug, name, icon: Icon, difficulties = [] } = Astro.props;
     if (board) ripple(board);
   });
 
-  window.addEventListener("puzzle:timer-reset", close);
+  // Seen again from "View results": no ripple, and no "New best" line for a board restored from earlier
+  window.addEventListener("puzzle:show-results", (e) => {
+    const { failed } = (e as CustomEvent<{ failed: boolean }>).detail;
+    open(failed ? "" : undefined);
+  });
+
+  // A different board: the last solve's stats no longer belong to what's shown
+  window.addEventListener("puzzle:timer-set", () => (result = null));
+  window.addEventListener("puzzle:timer-reset", () => {
+    result = null;
+    close();
+  });
   closeBtn.addEventListener("click", close);
   // Switch tabs the same way a player would, so the puzzle and timer follow
   nextBtn.addEventListener("click", () => {

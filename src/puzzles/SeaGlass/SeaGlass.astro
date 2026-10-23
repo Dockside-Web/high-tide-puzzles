@@ -53,9 +53,6 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
     ))}
   </div>
 
-  <!-- "Solved in 02:14" / "Solution revealed" once the board is finished -->
-  <p class="sea-glass__status" data-status-message aria-live="polite" hidden></p>
-
   <div class="sea-glass__bank-wrap">
     <div class="sea-glass__bank" data-bank>
       {Array.from({ length: ROWS * COLS }, (_, i) => (
@@ -117,17 +114,6 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
   /* Finished (solved or revealed): the board is locked until Reset */
   .sea-glass.is-locked .sea-glass__tile {
     cursor: default;
-  }
-
-  .sea-glass__status {
-    margin: -0.25rem 0;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: rgb(var(--muted));
-  }
-
-  .sea-glass[data-status="solved"] .sea-glass__status {
-    color: rgb(var(--puzzle-strong));
   }
 
   /* Shown over the empty bank while the day's tiles are being made */
@@ -302,9 +288,6 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
 
   const COLOR_NAMES: Record<string, string> = { K: "black", S: "seafoam", O: "ocean", Y: "sun", C: "coral" };
 
-  const formatTime = (seconds: number) =>
-    `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
-
   /** Resolves once the browser has drawn the current state (so "Shuffling…" shows before the heavy work). */
   const nextPaint = () => new Promise<void>((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
 
@@ -319,7 +302,6 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
     const bankSlots = Array.from(root.querySelectorAll<HTMLElement>('[data-area="bank"]'));
     const allSlots = [...boardSlots, ...bankSlots];
     const tileTemplate = root.querySelector<HTMLTemplateElement>("[data-tile-template]")!;
-    const statusMessage = root.querySelector<HTMLElement>("[data-status-message]")!;
 
     let tiles: HTMLButtonElement[] = [];
     let solution: string[] = [];
@@ -338,9 +320,6 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
       root.dataset.status = next;
       root.classList.toggle("is-locked", next !== "playing");
       if (next !== "playing") select(null);
-
-      statusMessage.hidden = next !== "solved" && next !== "revealed";
-      statusMessage.textContent = next === "solved" ? `Solved in ${formatTime(seconds)}` : "Solution revealed";
     }
 
     function save() {
@@ -676,7 +655,7 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
 
     // Save the finishing time the moment it's solved (the timer stops on this same event)
     window.addEventListener("puzzle:solved", () => {
-      setStatus("solved"); // refreshes "Solved in …" with the final time
+      setStatus("solved");
       save();
     });
 
