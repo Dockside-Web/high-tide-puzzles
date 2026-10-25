@@ -106,6 +106,24 @@ export function saveProgress(slug: string, difficulty: string, dateKey: string, 
   } catch {}
 }
 
+/**
+ * Calls back when another tab finishes (solves, reveals or loses) one of this puzzle's boards.
+ * A tab left open on the same board would otherwise keep its timer running, and its saves would
+ * write over the finished board.
+ */
+export function onFinishedElsewhere(slug: string, callback: (difficulty: string, dateKey: string) => void) {
+  window.addEventListener("storage", (e) => {
+    if (!e.key?.startsWith(`${PROGRESS_PREFIX}:${slug}:`) || !e.newValue) return;
+    try {
+      if (JSON.parse(e.newValue).status === "playing") return;
+    } catch {
+      return;
+    }
+    const [, , difficulty, dateKey] = e.key.split(":");
+    callback(difficulty, dateKey);
+  });
+}
+
 /** Drops a puzzle's saved boards from more than a couple of days ago. */
 export function forgetOldProgress(slug: string, today = new Date()) {
   const cutoff = localDateKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() - KEEP_DAYS));

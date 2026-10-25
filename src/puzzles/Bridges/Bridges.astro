@@ -226,7 +226,7 @@ const { puzzle } = Astro.props;
 </style>
 
 <script>
-  import { dailyPuzzles, forgetOldProgress, loadProgress, localDateKey, saveProgress } from "../daily";
+  import { dailyPuzzles, forgetOldProgress, loadProgress, localDateKey, onFinishedElsewhere, saveProgress } from "../daily";
   import { crossings, generateBridges, type BridgesDifficulty, type BridgesPuzzle } from "./generate";
 
   type Status = "loading" | "playing" | "solved" | "revealed";
@@ -595,6 +595,11 @@ const { puzzle } = Astro.props;
       dateKey = (e as CustomEvent<{ dateKey: string }>).detail.dateKey;
       forgetOldProgress(slug);
       load();
+    });
+
+    // Finished in another tab: show it finished here too, which also stops the timer
+    onFinishedElsewhere(slug, (d, day) => {
+      if (d === difficulty && day === dateKey && status === "playing") load();
     });
 
     forgetOldProgress(slug);

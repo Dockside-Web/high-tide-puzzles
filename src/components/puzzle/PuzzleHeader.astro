@@ -27,21 +27,25 @@ const iconButtonClass =
       {name}
     </h1>
     <!-- Filled in by the browser, so it's the player's date rather than the day the site was built -->
-    <p class="min-h-5 truncate text-sm font-medium text-muted" data-today-date></p>
+    <!-- Short on phones ("Sat, Oct 24"), where the full date gets cut off -->
+    <p class="min-h-5 truncate text-sm font-medium text-muted">
+      <span class="sm:hidden" data-today-date="short"></span><span class="hidden sm:inline" data-today-date="long"></span>
+    </p>
   </div>
 
-  <!-- Labeled, not just an icon, so first-time players can find the rules ("Rules" where space is tight) -->
+  <!-- Labeled, not just an icon, so first-time players can find the rules ("Rules" where space is tight,
+       and just the icon on the smallest phones, so the puzzle's name isn't cut off) -->
   <button
     id="help-btn"
     type="button"
-    class="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-muted ring-1 ring-line transition-colors hover:bg-ink/5 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-puzzle"
+    class="inline-flex h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-full px-3 max-[359px]:w-9 max-[359px]:px-0 text-sm font-semibold text-muted ring-1 ring-line transition-colors hover:bg-ink/5 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-puzzle"
   >
     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="10"></circle>
       <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
       <line x1="12" y1="17" x2="12.01" y2="17"></line>
     </svg>
-    <span class="sm:hidden">Rules</span>
+    <span class="max-[359px]:sr-only sm:hidden">Rules</span>
     <span class="hidden sm:inline">How to play</span>
   </button>
 </div>
@@ -50,9 +54,11 @@ const iconButtonClass =
 <script>
   import { onNewDay } from "../../puzzles/daily";
 
-  const dateLabel = document.querySelector<HTMLElement>("[data-today-date]");
   const showDate = () => {
-    if (dateLabel) dateLabel.textContent = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric" }).format(new Date());
+    document.querySelectorAll<HTMLElement>("[data-today-date]").forEach((label) => {
+      const style = label.dataset.todayDate as "short" | "long";
+      label.textContent = new Intl.DateTimeFormat("en-US", { weekday: style, month: style, day: "numeric" }).format(new Date());
+    });
   };
 
   showDate();

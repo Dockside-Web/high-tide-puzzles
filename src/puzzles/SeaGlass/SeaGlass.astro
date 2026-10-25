@@ -11,8 +11,10 @@ const { puzzle } = Astro.props;
 
 // The day's tiles are made in the browser from the player's local date (see generate.ts).
 // Each tile is a square split into 4 triangles: [top, right, bottom, left].
-// Triangles in a 100x100 tile, in that order
-const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,50", "0,0 0,100 50,50"];
+// Triangles in a 100x100 tile, in that order. Each reaches 1 unit past the tile's edge: on the board
+// that overlaps the neighbor, so the dark board can't show through where two antialiased edges meet
+// (the tile clips it everywhere else)
+const triangles = ["-1,-1 101,-1 50,50", "101,-1 101,101 50,50", "-1,101 101,101 50,50", "-1,-1 -1,101 50,50"];
 ---
 
 <!--
@@ -36,6 +38,9 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
     <button type="button" class="sea-glass__tile" data-tile aria-pressed="false">
       <svg viewBox="0 0 100 100" aria-hidden="true">
         {triangles.map((points) => <polygon points={points} class="sea-glass__tri" />)}
+        <!-- Just the diagonals: outlining each triangle would also line the tile's edges, which shows
+             as seams between tiles on the board -->
+        <path d="M0,0 L100,100 M100,0 L0,100" class="sea-glass__diagonals" />
       </svg>
     </button>
   </template>
@@ -67,7 +72,8 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
   .sea-glass {
     --black: 24 30 40;
     /* Tiles size to fit both the screen width and height (board + bank stacked) */
-    --cell: clamp(2.2rem, min(calc((100vw - 2.5rem) / (var(--cols) + 0.6)), calc((100dvh - 22rem) / 8.6)), 4.5rem);
+    --cell-fit: clamp(2.2rem, min(calc((100vw - 2.5rem) / (var(--cols) + 0.6)), calc((100dvh - 22rem) / 8.6)), 4.5rem);
+    --cell: var(--cell-fit);
 
     display: flex;
     flex-direction: column;
@@ -75,6 +81,14 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
     gap: 1rem;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  /* In whole pixels where possible, so rows and columns don't land between pixels and leave faint
+     seams on the board */
+  @supports (width: round(down, 10.5px, 1px)) {
+    .sea-glass {
+      --cell: round(down, var(--cell-fit), 1px);
+    }
   }
 
   :global(.dark) .sea-glass {
@@ -144,6 +158,12 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
     outline: none;
   }
 
+  /* A filled board space is all tile, with no empty-space shading left to show at its edges */
+  .sea-glass__board .sea-glass__slot:has(> .sea-glass__tile) {
+    background: none;
+    box-shadow: none;
+  }
+
   /* Drawn above any tile in the space: an empty space you can tap/tab to while a tile is picked up.
      (Dragging shows the tile snapped into the space instead.) */
   .sea-glass.is-picking .sea-glass__slot:empty:hover::after,
@@ -211,7 +231,13 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
     height: 100%;
   }
 
-  .sea-glass__tri {
+  /* On the board, let the triangles' 1-unit bleed show (see `triangles`), so tiles meet seamlessly */
+  .sea-glass__board .sea-glass__tile:not(.is-selected),
+  .sea-glass__board .sea-glass__tile:not(.is-selected) svg {
+    overflow: visible;
+  }
+
+  .sea-glass__diagonals {
     stroke: rgb(0 0 0 / 0.18);
     stroke-width: 1;
     vector-effect: non-scaling-stroke;
@@ -273,7 +299,7 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
 </style>
 
 <script>
-  import { dailyPuzzles, forgetOldProgress, loadProgress, localDateKey, saveProgress } from "../daily";
+  import { dailyPuzzles, forgetOldProgress, loadProgress, localDateKey, onFinishedElsewhere, saveProgress } from "../daily";
   import { generateSeaGlass, type SeaGlassDifficulty } from "./generate";
 
   type Status = "loading" | "playing" | "solved" | "revealed";
@@ -668,6 +694,11 @@ const triangles = ["0,0 100,0 50,50", "100,0 100,100 50,50", "0,100 100,100 50,5
     window.addEventListener("puzzle:difficulty-change", (e) => {
       difficulty = (e as CustomEvent<{ value: SeaGlassDifficulty }>).detail.value;
       load();
+    });
+
+    // Finished in another tab: show it finished here too, which also stops the timer
+    onFinishedElsewhere(slug, (d, day) => {
+      if (d === difficulty && day === dateKey && status === "playing") load();
     });
 
     forgetOldProgress(slug);

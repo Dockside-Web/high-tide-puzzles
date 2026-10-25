@@ -202,7 +202,7 @@ const indexes = Array.from({ length: SIZE }, (_, i) => i);
 </style>
 
 <script>
-  import { dailyPuzzles, forgetOldProgress, loadProgress, localDateKey, saveProgress } from "../daily";
+  import { dailyPuzzles, forgetOldProgress, loadProgress, localDateKey, onFinishedElsewhere, saveProgress } from "../daily";
   import { SIZE, generateBuoy, type BuoyDifficulty, type BuoyPuzzle } from "./generate";
 
   const EMPTY = 0;
@@ -526,6 +526,11 @@ const indexes = Array.from({ length: SIZE }, (_, i) => i);
     dateKey = (e as CustomEvent<{ dateKey: string }>).detail.dateKey;
     forgetOldProgress(slug);
     load();
+  });
+
+  // Finished in another tab: show it finished here too, which also stops the timer
+  onFinishedElsewhere(slug, (d, day) => {
+    if (d === difficulty && day === dateKey && status === "playing") load();
   });
 
   forgetOldProgress(slug);

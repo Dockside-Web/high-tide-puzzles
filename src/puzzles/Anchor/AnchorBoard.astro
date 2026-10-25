@@ -408,7 +408,7 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
 </style>
 
 <script>
-  import { forgetOldProgress, loadProgress, localDateKey, saveProgress } from "../daily";
+  import { forgetOldProgress, loadProgress, localDateKey, onFinishedElsewhere, saveProgress } from "../daily";
   import { WORDS, acceptedLines, lineText, parentOf, puzzleFor, shuffledWords } from "./anchor";
   import { ANCHOR_SETS } from "./sets";
 
@@ -1177,6 +1177,11 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
     requestAnimationFrame(() => {
       drawEdges();
       setTimeout(drawEdges, 100);
+    });
+
+    // Finished in another tab: show it finished here too, which also stops the timer
+    onFinishedElsewhere(slug, (_, day) => {
+      if (day === dateKey && status === "playing") load();
     });
 
     forgetOldProgress(slug);
