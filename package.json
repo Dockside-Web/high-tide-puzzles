@@ -6,7 +6,8 @@
     "dev": "astro dev",
     "build": "astro build",
     "deploy": "npm run check:puzzles && astro build && wrangler deploy",
-    "check:puzzles": "node scripts/check-puzzles.ts",
+    "check:puzzles": "node --import ./scripts/text-imports.mjs scripts/check-puzzles.ts",
+    "build:anchor-links": "node scripts/build-anchor-links.ts",
     "preview": "astro preview",
     "astro": "astro"
   },
@@ -16,5 +17,8 @@
     "@tailwindcss/vite": "^4.2.1",
     "astro": "^6.0.4",
     "tailwindcss": "^4.2.1"
+  },
+  "devDependencies": {
+    "wordlist-english": "^1.2.1"
   }
 }

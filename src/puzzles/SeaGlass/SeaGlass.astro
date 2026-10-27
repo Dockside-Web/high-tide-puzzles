@@ -299,7 +299,7 @@ const triangles = ["-1,-1 101,-1 50,50", "101,-1 101,101 50,50", "-1,101 101,101
 </style>
 
 <script>
-  import { dailyPuzzles, forgetOldProgress, loadProgress, localDateKey, onFinishedElsewhere, saveProgress } from "../daily";
+  import { dailyPuzzles, forgetOldProgress, loadProgress, localDateKey, onFinishedElsewhere, saveProgress, startingDifficulty } from "../daily";
   import { generateSeaGlass, type SeaGlassDifficulty } from "./generate";
 
   type Status = "loading" | "playing" | "solved" | "revealed";
@@ -319,9 +319,10 @@ const triangles = ["-1,-1 101,-1 50,50", "101,-1 101,101 50,50", "-1,101 101,101
 
   function initSeaGlass(root: HTMLElement) {
     const slug = root.dataset.slug!;
-    const puzzles = dailyPuzzles(slug, root.dataset.difficulties!.split(" ") as SeaGlassDifficulty[], generateSeaGlass);
+    const difficulties = root.dataset.difficulties!.split(" ") as SeaGlassDifficulty[];
+    const puzzles = dailyPuzzles(slug, difficulties, generateSeaGlass);
     let dateKey = localDateKey();
-    let difficulty: SeaGlassDifficulty = "easy"; // the first difficulty tab starts selected
+    let difficulty = startingDifficulty(slug, difficulties); // the first not finished today (PuzzleControls picks the same tab)
     const rows = Number(root.dataset.rows);
     const cols = Number(root.dataset.cols);
     const boardSlots = Array.from(root.querySelectorAll<HTMLElement>('[data-area="board"]'));

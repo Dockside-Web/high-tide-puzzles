@@ -3,11 +3,12 @@ import type { Difficulty } from "../../puzzles/types";
 import Timer from "./Timer.astro";
 
 interface Props {
+  slug: string;
   difficulties: Difficulty[];
   showTimer: boolean;
 }
 
-const { difficulties, showTimer } = Astro.props;
+const { slug, difficulties, showTimer } = Astro.props;
 
 const optionClass =
   "relative cursor-pointer py-2.5 text-sm font-semibold text-muted transition-colors hover:text-ink aria-pressed:text-puzzle-strong";
@@ -22,7 +23,7 @@ const optionClass =
 -->
 <div class="flex items-center justify-between gap-4 border-b border-line select-none">
   <!-- Kept even with no tabs, so the timer stays on the right -->
-  <div class="relative flex items-center gap-4 sm:gap-5" role="group" aria-label="Difficulty" data-segmented data-event="puzzle:difficulty-change">
+  <div class="relative flex items-center gap-4 sm:gap-5" role="group" aria-label="Difficulty" data-segmented data-event="puzzle:difficulty-change" data-slug={slug}>
     {difficulties.map((diff, index) => (
       <button type="button" class={optionClass} data-value={diff.id} aria-pressed={index === 0 ? "true" : "false"}>
         {diff.label}
@@ -50,6 +51,8 @@ const optionClass =
 </style>
 
 <script>
+  import { startingDifficulty } from "../../puzzles/daily";
+
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const board = document.querySelector<HTMLElement>("[data-puzzle-board]");
   const FADE_OUT_MS = 140;
@@ -89,6 +92,12 @@ const optionClass =
   document.querySelectorAll<HTMLElement>("[data-segmented]").forEach((group) => {
     const options = Array.from(group.querySelectorAll<HTMLButtonElement>("[data-value]"));
     const underline = group.querySelector<HTMLElement>("[data-underline]");
+
+    // Open on the first difficulty not finished today, the same one the puzzle loads (see startingDifficulty)
+    if (group.dataset.slug && options.length) {
+      const start = startingDifficulty(group.dataset.slug, options.map((o) => o.dataset.value!));
+      options.forEach((o) => o.setAttribute("aria-pressed", String(o.dataset.value === start)));
+    }
 
     /** Puts the underline under the picked tab, overlapping the bar's hairline. */
     function placeUnderline() {

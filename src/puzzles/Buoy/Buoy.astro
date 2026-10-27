@@ -202,7 +202,7 @@ const indexes = Array.from({ length: SIZE }, (_, i) => i);
 </style>
 
 <script>
-  import { dailyPuzzles, forgetOldProgress, loadProgress, localDateKey, onFinishedElsewhere, saveProgress } from "../daily";
+  import { dailyPuzzles, forgetOldProgress, loadProgress, localDateKey, onFinishedElsewhere, saveProgress, startingDifficulty } from "../daily";
   import { SIZE, generateBuoy, type BuoyDifficulty, type BuoyPuzzle } from "./generate";
 
   const EMPTY = 0;
@@ -225,10 +225,11 @@ const indexes = Array.from({ length: SIZE }, (_, i) => i);
   const rowClues = Array.from(root.querySelectorAll<HTMLElement>("[data-row-clue]"));
   const colClues = Array.from(root.querySelectorAll<HTMLElement>("[data-col-clue]"));
   const bordersSvg = root.querySelector<SVGSVGElement>("[data-borders]")!;
-  const puzzles = dailyPuzzles(slug, root.dataset.difficulties!.split(" ") as BuoyDifficulty[], generateBuoy);
+  const difficulties = root.dataset.difficulties!.split(" ") as BuoyDifficulty[];
+  const puzzles = dailyPuzzles(slug, difficulties, generateBuoy);
 
   let dateKey = localDateKey();
-  let difficulty: BuoyDifficulty = "easy"; // the first difficulty tab starts selected
+  let difficulty = startingDifficulty(slug, difficulties); // the first not finished today (PuzzleControls picks the same tab)
   let puzzle: BuoyPuzzle;
   /** Region number -> the cell showing its clue (the region's first cell in reading order) */
   let regionClueCell = new Map<number, number>();

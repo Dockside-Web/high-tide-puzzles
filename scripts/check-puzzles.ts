@@ -29,12 +29,19 @@ import {
 } from "../src/puzzles/Bridges/generate.ts";
 
 import {
+  MAX_SINGLE_LETTERS,
   MAX_WORD_LENGTH,
   WORDS as ANCHOR_WORDS,
   acceptedLines,
+  dayNumber,
+  findAnswers,
+  generateAnchor,
   lineText,
-  puzzleFor as anchorFor,
+  pairGraph,
+  pairList,
   rightLines,
+  rootFor,
+  sameAnswer,
   shuffledWords,
   type AnchorSet,
 } from "../src/puzzles/Anchor/anchor.ts";
@@ -164,29 +171,63 @@ function checkBridges(difficulty: BridgesDifficulty, dateKey: string, checkRepea
   return null;
 }
 
-/**
- * Anchor Chain's and Anchor Links' puzzles are written, not generated, so each one in the list is
- * checked for mistakes.
- */
-function checkAnchorPuzzle(set: AnchorSet, index: number) {
-  const { words, alsoAccept = [] } = set.puzzles[index];
-  if (words.length !== ANCHOR_WORDS) return `has ${words.length} ${set.tile}s, not ${ANCHOR_WORDS}`;
-  const bad = words.find((w) => !/^[A-Z]+$/.test(w));
-  if (bad !== undefined) return `"${bad}" isn't one uppercase ${set.tile}`;
-  const long = words.find((w) => w.length > MAX_WORD_LENGTH);
-  if (long) return `"${long}" is longer than ${MAX_WORD_LENGTH} letters`;
-  if (new Set(words).size !== words.length) return `uses a ${set.tile} twice`;
-  for (const line of alsoAccept) {
-    if (!words.some((a) => words.some((b) => a !== b && lineText(set, a, b) === line))) {
-      return `extra ${set.makes} "${line}" isn't two of its ${set.tile}s`;
+/** Anchor Chain's and Anchor Links' pair lists are edited by hand, so they're checked for typos. */
+function checkAnchorPairs(set: AnchorSet) {
+  const problems: string[] = [];
+  const seen = new Set<string>();
+  for (const words of pairList(set)) {
+    const line = words.join(" ");
+    if (words.length !== 2) {
+      problems.push(`"${line}" isn't two ${set.tile}s`);
+      continue;
     }
+    for (const tile of words) {
+      if (!/^[A-Z]+$/.test(tile)) problems.push(`"${tile}" (in "${line}") isn't one uppercase ${set.tile}`);
+      else if (tile.length > MAX_WORD_LENGTH) problems.push(`"${tile}" (in "${line}") is longer than ${MAX_WORD_LENGTH} letters`);
+    }
+    if (words[0] === words[1]) problems.push(`"${line}" pairs a ${set.tile} with itself`);
+    if (seen.has(line)) problems.push(`"${line}" is in the list twice`);
+    seen.add(line);
   }
-  return null;
+  if (!pairGraph(set).roots.length) problems.push(`no ${set.tile} can top a full puzzle`);
+  return problems;
 }
 
-/** The day's board: a puzzle from the list, shuffled the same way every time, and not starting solved. */
-function checkAnchorDay(slug: string, set: AnchorSet, dateKey: string) {
-  const puzzle = anchorFor(set, dateKey);
+/** Days whose own top tile didn't work, so another one stood in (fine now and then, not every day) */
+const anchorStandIns: Record<string, number> = {};
+/** A line (word or phrase) back within this many days counts as a repeat; the share of lines that are, by game */
+const ANCHOR_REPEAT_DAYS = 30;
+const anchorRepeats: Record<string, number> = {};
+
+/**
+ * The day's puzzle: 15 different tiles whose lines are all on the pair list and fit together only
+ * one way, the same every time for the date, shuffled the same way, and not starting solved.
+ */
+function checkAnchorDay(slug: string, set: AnchorSet, dateKey: string, checkRepeat: boolean, yesterdayTop?: string) {
+  const startedDay = performance.now();
+  const puzzle = generateAnchor(slug, set, dateKey);
+  slowestMs = Math.max(slowestMs, performance.now() - startedDay);
+  const { words } = puzzle;
+  const { lines } = pairGraph(set);
+
+  if (words.length !== ANCHOR_WORDS) return `has ${words.length} ${set.tile}s, not ${ANCHOR_WORDS}`;
+  if (new Set(words).size !== words.length) return `uses a ${set.tile} twice`;
+  const singles = words.filter((w) => w.length === 1).length;
+  if (singles > MAX_SINGLE_LETTERS) return `has ${singles} single-letter ${set.tile}s`;
+  for (let child = 1; child < ANCHOR_WORDS; child++) {
+    const line = lineText(set, words[(child - 1) >> 1], words[child]);
+    if (!lines.has(line)) return `"${line}" isn't on the pair list`;
+  }
+  const answers = findAnswers(set, words, 2);
+  if (answers.length === 0) return "has no answer (bug)";
+  if (answers.length > 1) return `fits together more than one way (also: ${answers.find((a) => !sameAnswer(set, a, words))!.join(" ")})`;
+  if (!sameAnswer(set, answers[0], words)) return "solves to a different answer";
+  if (words[0] === yesterdayTop) return `has the same top ${set.tile} as yesterday (${words[0]})`;
+  if (words[0] !== rootFor(slug, set, dayNumber(dateKey))) anchorStandIns[slug] = (anchorStandIns[slug] ?? 0) + 1;
+  if (checkRepeat && generateAnchor(slug, set, dateKey).words.join() !== words.join()) {
+    return "isn't the same every time for this date";
+  }
+
   const seed = `${slug}:${dateKey}`;
   const start = shuffledWords(set, puzzle, seed);
   if ([...start].sort().join() !== [...puzzle.words].sort().join()) return `starts with the wrong ${set.tile}s`;
@@ -239,24 +280,50 @@ for (const difficulty of BRIDGES_DIFFICULTIES) {
 }
 
 for (const [slug, set] of Object.entries(ANCHOR_SETS)) {
-  set.puzzles.forEach((_, i) => {
-    const problem = checkAnchorPuzzle(set, i);
-    if (problem) failures.push(`${slug} puzzle ${i + 1} in the list: ${problem}`);
-  });
+  const listProblems = checkAnchorPairs(set);
+  failures.push(...listProblems.map((problem) => `${slug} pair list: ${problem}`));
+  if (listProblems.length) continue;
+  let yesterdayTop: string | undefined;
+  const lastSeen = new Map<string, number>(); // line -> the last day offset it was used
+  let linesUsed = 0;
+  let linesBackSoon = 0;
   for (let offset = -DAYS_BACK; offset <= DAYS_AHEAD; offset++) {
     const dateKey = localDateKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset));
-    const problem = checkAnchorDay(slug, set, dateKey);
-    if (problem) failures.push(`${slug} ${dateKey}: ${problem}`);
+    try {
+      const problem = checkAnchorDay(slug, set, dateKey, offset % 10 === 0, yesterdayTop);
+      if (problem) failures.push(`${slug} ${dateKey}: ${problem}`);
+      const { words } = generateAnchor(slug, set, dateKey);
+      yesterdayTop = words[0];
+      for (let child = 1; child < ANCHOR_WORDS; child++) {
+        const line = lineText(set, words[(child - 1) >> 1], words[child]);
+        if (offset - (lastSeen.get(line) ?? -Infinity) <= ANCHOR_REPEAT_DAYS) linesBackSoon++;
+        lastSeen.set(line, offset);
+        linesUsed++;
+      }
+    } catch (error) {
+      failures.push(`${slug} ${dateKey}: ${(error as Error).message}`);
+      yesterdayTop = undefined;
+    }
     checked++;
   }
+  anchorRepeats[slug] = linesBackSoon / linesUsed;
 }
 
 const seconds = ((performance.now() - started) / 1000).toFixed(1);
+for (const [slug, count] of Object.entries(anchorStandIns)) {
+  console.log(`${slug}: ${count} days used a stand-in top ${ANCHOR_SETS[slug].tile} (its own made no puzzle with one answer).`);
+}
+for (const [slug, share] of Object.entries(anchorRepeats)) {
+  const { makes } = ANCHOR_SETS[slug];
+  console.log(
+    `${slug}: ${(share * 100).toFixed(1)}% of ${makes}s were also used in the ${ANCHOR_REPEAT_DAYS} days before (list has ${pairGraph(ANCHOR_SETS[slug]).lines.size}).`
+  );
+}
 
 if (failures.length) {
   console.error(`${failures.length} of ${checked} puzzles failed:\n  ${failures.join("\n  ")}`);
   process.exit(1);
 }
 console.log(
-  `All ${checked} puzzles (Sea Glass, Buoy and Bridges at Easy and Hard, plus Anchor Chain and Anchor Links) have exactly one solution (${seconds}s, slowest day ${Math.round(slowestMs)}ms).`
+  `All ${checked} puzzles (Sea Glass, Buoy and Bridges at Easy and Hard, Anchor Chain and Anchor Links) have exactly one solution (${seconds}s, slowest day ${Math.round(slowestMs)}ms).`
 );

@@ -1,10 +1,13 @@
-// Anchor Chain: every line is a two-word phrase, read top to bottom ("ICE CREAM").
-// The board, rules and everything else are shared with Anchor Links (see ../Anchor).
+// Anchor Chain: every line is a two-word phrase, read top to bottom ("ICE CREAM"). Open compounds
+// only: two words written apart, not ones usually written as one ("FIREWORK") or hyphenated.
+// The board, rules and puzzle maker are shared with Anchor Links (see ../Anchor).
 //
-// TODO: this only holds placeholder words for now. Swap in the real word bank here (or load a
-// schedule file); nothing else needs to change. Each day uses the next puzzle in the list.
+// The phrases are in phrases.txt, one per line ("ICE CREAM"), written by hand: add or remove lines
+// there. Every word is 6 letters or fewer, and the pre-deploy check (npm run check:puzzles) catches
+// typos and reports how often phrases come back within a month.
 
 import type { AnchorSet } from "../Anchor/anchor.ts";
+import pairs from "./phrases.txt?raw";
 
 export const ANCHOR_CHAIN: AnchorSet = {
   join: " ",
@@ -26,14 +29,5 @@ export const ANCHOR_CHAIN: AnchorSet = {
       below: [{ word: "CHEESE", ok: true }, { word: "DOG", ok: false }],
     },
   ],
-  puzzles: [
-    {
-      words: [
-        "HOT",
-        "DOG", "WATER",
-        "HOUSE", "FOOD", "FALL", "PARK",
-        "PARTY", "CAT", "TRUCK", "COURT", "GUY", "OUT", "BENCH", "PLACE",
-      ],
-    },
-  ],
+  pairs,
 };

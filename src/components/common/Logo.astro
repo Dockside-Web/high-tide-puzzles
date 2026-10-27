@@ -1,25 +1,42 @@
 ---
 import BuoyIcon from "../../puzzles/Buoy/buoy.svg";
 
-// "HIGH TIDE (buoy) PUZZLES". Built from live text + the Buoy icon instead of an image,
-// so it has a light version (navy text) and a dark version (white text) that follow the theme.
-// Size it with a font-size class, e.g. class="text-2xl".
+// Built from live text + the Buoy icon instead of an image, so it has a light version (navy text) and a
+// dark version (white text) that follow the theme. Size it with a font-size class, e.g. class="text-2xl".
+//
+//   stacked (default):  HIGH (buoy) TIDE      inline (the earlier logo):  HIGH TIDE (buoy) PUZZLES
+//                          PUZZLES
 interface Props {
   class?: string;
+  variant?: "stacked" | "inline";
 }
 
-const { class: className } = Astro.props;
+const { class: className, variant = "stacked" } = Astro.props;
+const base = "font-logo leading-none font-bold whitespace-nowrap text-[#13294b] uppercase dark:text-white";
 ---
 
-<span
-  class:list={[
-    "inline-flex items-center gap-[0.12em] font-logo leading-none font-bold tracking-[0.03em] whitespace-nowrap text-[#13294b] uppercase dark:text-white",
-    className,
-  ]}
-  role="img"
-  aria-label="High Tide Puzzles"
->
-  <span aria-hidden="true">High Tide</span>
-  <BuoyIcon class="h-[1.85em] w-[1.85em] shrink-0" aria-hidden="true" />
-  <span aria-hidden="true">Puzzles</span>
-</span>
+{
+  variant === "inline" ? (
+    <span
+      class:list={["inline-flex items-center gap-[0.12em] tracking-[0.03em]", base, className]}
+      role="img"
+      aria-label="High Tide Puzzles"
+    >
+      <span aria-hidden="true">High Tide</span>
+      <BuoyIcon class="h-[1.85em] w-[1.85em] shrink-0" aria-hidden="true" />
+      <span aria-hidden="true">Puzzles</span>
+    </span>
+  ) : (
+    <span class:list={["inline-flex flex-col items-center", base, className]} role="img" aria-label="High Tide Puzzles">
+      <span class="inline-flex items-center gap-[0.12em] tracking-[0.03em]" aria-hidden="true">
+        <span>High</span>
+        <BuoyIcon class="h-[1.85em] w-[1.85em] shrink-0" />
+        <span>Tide</span>
+      </span>
+      {/* Letter spacing also trails the last letter, so the same space on the left keeps the word centered */}
+      <span class="mt-[0.1em] pl-[0.42em] text-[0.55em] font-semibold tracking-[0.42em]" aria-hidden="true">
+        Puzzles
+      </span>
+    </span>
+  )
+}

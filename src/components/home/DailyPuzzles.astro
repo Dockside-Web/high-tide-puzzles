@@ -38,6 +38,8 @@ const puzzles = [...PUZZLE_LIST].sort((a, b) => Number(!!a.comingSoon) - Number(
         ) : (
         <a
           href={`/${puzzle.slug}/`}
+          data-done={puzzle.slug}
+          data-difficulties={(puzzle.difficulties?.map((d) => d.id) ?? ["default"]).join(" ")}
           class="group flex items-center gap-3 rounded-2xl bg-surface px-4 py-4 ring-1 ring-line transition-[background-color,box-shadow] duration-200 ease-smooth hover:bg-puzzle/10 hover:ring-puzzle/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-puzzle sm:px-5 sm:gap-4"
         >
           <Icon
@@ -72,9 +74,16 @@ const puzzles = [...PUZZLE_LIST].sort((a, b) => Number(!!a.comingSoon) - Number(
             <span data-streak-text></span>
           </span>
 
-          <svg class="h-5 w-5 shrink-0 text-muted/60 transition-[color,transform] duration-200 ease-smooth group-hover:translate-x-1 group-hover:text-puzzle-strong" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <svg class="h-5 w-5 shrink-0 text-muted/60 transition-[color,transform] duration-200 ease-smooth group-hover:translate-x-1 group-hover:text-puzzle-strong" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-arrow>
             <path d="M9 18l6-6-6-6"></path>
           </svg>
+          <!-- Every difficulty solved today: a check in the puzzle's color takes the arrow's place -->
+          <span class="shrink-0 text-puzzle-strong" data-check hidden>
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M5 12.5l4.5 4.5L19 7.5"></path>
+            </svg>
+            <span class="sr-only">Solved today</span>
+          </span>
         </a>
         )}
       </li>
@@ -83,7 +92,7 @@ const puzzles = [...PUZZLE_LIST].sort((a, b) => Number(!!a.comingSoon) - Number(
 </section>
 
 <script>
-  import { onNewDay } from "../../puzzles/daily";
+  import { onNewDay, solvedToday } from "../../puzzles/daily";
   import { currentStreak } from "../../puzzles/stats";
 
   const dateLabel = document.querySelector<HTMLElement>("[data-today-date]");
@@ -101,10 +110,26 @@ const puzzles = [...PUZZLE_LIST].sort((a, b) => Number(!!a.comingSoon) - Number(
     });
   };
 
+  const showDone = () => {
+    document.querySelectorAll<HTMLElement>("[data-done]").forEach((card) => {
+      const done = solvedToday(card.dataset.done!, card.dataset.difficulties!.split(" "));
+      card.querySelector<SVGElement>("[data-arrow]")!.toggleAttribute("hidden", done);
+      card.querySelector<HTMLElement>("[data-check]")!.hidden = !done;
+    });
+  };
+
   showDate();
   showStreaks();
+  showDone();
   onNewDay(() => {
     showDate();
     showStreaks(); // a streak with no solve yesterday ends at midnight
+    showDone();
+  });
+  // Coming back with the Back button can show the page as it was left, before today's solve
+  window.addEventListener("pageshow", (e) => {
+    if (!e.persisted) return;
+    showStreaks();
+    showDone();
   });
 </script>

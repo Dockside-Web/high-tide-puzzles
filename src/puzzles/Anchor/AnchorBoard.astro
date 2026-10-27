@@ -4,7 +4,7 @@ import { WORDS, parentOf } from "./anchor";
 import { ANCHOR_SETS } from "./sets";
 
 // The board for both Anchor Chain (phrases) and Anchor Links (words from pieces): the same rules and
-// look, with the puzzle list picked by the puzzle's slug (see sets.ts).
+// look, with the pair list picked by the puzzle's slug (see sets.ts).
 
 interface Props {
   puzzle: PuzzleConfig;
@@ -731,7 +731,7 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
      */
     function hint() {
       const inLockedLine = (p: number) => locked.has(p) || locked.has(2 * p + 1) || locked.has(2 * p + 2);
-      const answer = puzzleFor(set, dateKey).words;
+      const answer = puzzleFor(slug, set, dateKey).words;
       for (let child = 1; child <= LAST; child++) {
         const upper = answer[parentOf(child)];
         const lower = answer[child];
@@ -766,7 +766,7 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
     // The whole answer drawn in, then the board locks (no celebration)
     window.addEventListener("puzzle:reveal", () => {
       if (over()) return;
-      words = puzzleFor(set, dateKey).words.slice();
+      words = puzzleFor(slug, set, dateKey).words.slice();
       for (let child = 1; child <= LAST; child++) {
         links.add(child);
         locked.add(child);
@@ -787,7 +787,7 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
         seconds = 0;
         window.dispatchEvent(new Event("puzzle:timer-reset"));
       }
-      words = shuffledWords(set, puzzleFor(set, dateKey), `${slug}:${dateKey}`);
+      words = shuffledWords(set, puzzleFor(slug, set, dateKey), `${slug}:${dateKey}`);
       links.clear();
       locked.clear();
       wrongPairs.clear();
@@ -1117,7 +1117,7 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
     function load() {
       root.classList.add("no-draw");
       requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove("no-draw")));
-      const puzzle = puzzleFor(set, dateKey);
+      const puzzle = puzzleFor(slug, set, dateKey);
       lines = acceptedLines(set, puzzle);
       links.clear();
       locked.clear();

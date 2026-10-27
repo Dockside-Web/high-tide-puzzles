@@ -106,6 +106,22 @@ export function saveProgress(slug: string, difficulty: string, dateKey: string, 
   } catch {}
 }
 
+const savedStatus = (slug: string, difficulty: string, dateKey: string) =>
+  loadProgress<{ status?: string }>(slug, difficulty, dateKey)?.status ?? "playing";
+
+/**
+ * The difficulty a puzzle page opens on: the first one not finished today (solved, revealed or
+ * lost), so a returning player lands on what's left to play; the first one if they're all finished.
+ */
+export function startingDifficulty<D extends string>(slug: string, difficulties: D[], dateKey = localDateKey()): D {
+  return difficulties.find((d) => savedStatus(slug, d, dateKey) === "playing") ?? difficulties[0];
+}
+
+/** True once every difficulty of a puzzle is solved today (a revealed answer doesn't count). */
+export function solvedToday(slug: string, difficulties: string[], dateKey = localDateKey()) {
+  return difficulties.every((d) => savedStatus(slug, d, dateKey) === "solved");
+}
+
 /**
  * Calls back when another tab finishes (solves, reveals or loses) one of this puzzle's boards.
  * A tab left open on the same board would otherwise keep its timer running, and its saves would

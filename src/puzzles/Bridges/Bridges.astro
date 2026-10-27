@@ -226,7 +226,7 @@ const { puzzle } = Astro.props;
 </style>
 
 <script>
-  import { dailyPuzzles, forgetOldProgress, loadProgress, localDateKey, onFinishedElsewhere, saveProgress } from "../daily";
+  import { dailyPuzzles, forgetOldProgress, loadProgress, localDateKey, onFinishedElsewhere, saveProgress, startingDifficulty } from "../daily";
   import { crossings, generateBridges, type BridgesDifficulty, type BridgesPuzzle } from "./generate";
 
   type Status = "loading" | "playing" | "solved" | "revealed";
@@ -257,7 +257,8 @@ const { puzzle } = Astro.props;
 
   function initBridges(root: HTMLElement) {
     const slug = root.dataset.slug!;
-    const puzzles = dailyPuzzles(slug, root.dataset.difficulties!.split(" ") as BridgesDifficulty[], generateBridges);
+    const difficulties = root.dataset.difficulties!.split(" ") as BridgesDifficulty[];
+    const puzzles = dailyPuzzles(slug, difficulties, generateBridges);
     const svg = root.querySelector<SVGSVGElement>("[data-svg]")!;
     const gridLayer = svg.querySelector<SVGGElement>("[data-grid]")!;
     const gapLayer = svg.querySelector<SVGGElement>("[data-gaps]")!;
@@ -265,7 +266,7 @@ const { puzzle } = Astro.props;
     const islandLayer = svg.querySelector<SVGGElement>("[data-islands]")!;
 
     let dateKey = localDateKey();
-    let difficulty: BridgesDifficulty = "easy"; // the first difficulty tab starts selected
+    let difficulty = startingDifficulty(slug, difficulties); // the first not finished today (PuzzleControls picks the same tab)
     let puzzle: BridgesPuzzle;
     let cross: number[][] = [];
     let pairEls: SVGGElement[] = [];

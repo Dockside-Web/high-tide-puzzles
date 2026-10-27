@@ -9,7 +9,7 @@ const config: PuzzleConfig = {
   component: Buoy,
   icon,
   color: "coral",
-  tagline: "Match every row, column and region count.",
+  tagline: "Match row, column and region counts.",
   instructions:
     "Place buoys so every row, column and region holds as many as its number. Tap a cell for water, again for a buoy, again to clear it.",
   helpExamples: BuoyHelp,

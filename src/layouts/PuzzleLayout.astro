@@ -40,7 +40,7 @@ const description = `${puzzle.tagline} A new ${name} puzzle every day, free to p
 
       {hasControls && (
         <div class="mt-3" data-float>
-          <PuzzleControls difficulties={difficulties} showTimer={timer} />
+          <PuzzleControls slug={puzzle.slug} difficulties={difficulties} showTimer={timer} />
         </div>
       )}
     </div>

@@ -4,14 +4,14 @@
   To remake it after changing this file, from the project folder:
     "/c/Program Files/Google/Chrome/Application/chrome.exe" --headless --disable-gpu --hide-scrollbars \
       --window-size=1200,630 --virtual-time-budget=5000 \
-      --screenshot="$PWD/public/og-main.png" "file:///$PWD/scripts/social-image.html"
+      --screenshot="$(cygpath -m "$PWD")/public/og-main.png" "file:///$(cygpath -m "$PWD")/scripts/social-image.html"
 -->
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@500&family=Fredoka:wght@700&display=block"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@500&family=Fredoka:wght@600;700&display=block"
     />
     <style>
       html,
@@ -27,21 +27,34 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 44px;
+        gap: 36px;
         font-family: Inter, sans-serif;
         color: #102a43;
       }
+      /* Same as the site's stacked logo (src/components/common/Logo.astro) */
       .logo {
         display: flex;
+        flex-direction: column;
         align-items: center;
-        gap: 0.12em;
         font-family: Fredoka, sans-serif;
         font-size: 92px;
         font-weight: 700;
-        letter-spacing: 0.03em;
         text-transform: uppercase;
         color: #13294b;
         line-height: 1;
+      }
+      .logo-line {
+        display: flex;
+        align-items: center;
+        gap: 0.12em;
+        letter-spacing: 0.03em;
+      }
+      .logo-sub {
+        margin-top: 0.1em;
+        padding-left: 0.42em;
+        font-size: 0.55em;
+        font-weight: 600;
+        letter-spacing: 0.42em;
       }
       .logo img {
         width: 1.85em;
@@ -65,11 +78,14 @@
   </head>
   <body>
     <div class="logo">
-      <span>High Tide</span>
-      <img src="../src/puzzles/Buoy/buoy.svg" alt="" />
-      <span>Puzzles</span>
+      <div class="logo-line">
+        <span>High</span>
+        <img src="../src/puzzles/Buoy/buoy.svg" alt="" />
+        <span>Tide</span>
+      </div>
+      <span class="logo-sub">Puzzles</span>
     </div>
-    <p class="tagline">Free daily puzzles. A new challenge every day.</p>
+    <p class="tagline">A fresh wave of puzzles every day.</p>
     <div class="icons">
       <img src="../src/puzzles/SeaGlass/sea-glass.svg" alt="" />
       <img src="../src/puzzles/AnchorChain/anchor-chain.svg" alt="" />
