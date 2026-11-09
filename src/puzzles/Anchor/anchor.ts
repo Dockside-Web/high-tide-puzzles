@@ -132,6 +132,126 @@ export function sameAnswer(set: AnchorSet, a: string[], b: string[]) {
   return rightLines(set, b, lines) === WORDS - 1;
 }
 
+// ---------- Moving linked groups ----------
+// A link is stored by its lower tile's position (each position below the top has one parent).
+
+/** All positions joined to p by links (just [p] for a loose tile), sorted so the group's top is first. */
+export function linkedGroup(links: Set<number>, p: number) {
+  const seen = new Set([p]);
+  const queue = [p];
+  while (queue.length) {
+    const q = queue.pop()!;
+    const neighbors = [2 * q + 1, 2 * q + 2].filter((c) => c < WORDS && links.has(c));
+    if (q > 0 && links.has(q)) neighbors.push(parentOf(q));
+    for (const n of neighbors) {
+      if (!seen.has(n)) {
+        seen.add(n);
+        queue.push(n);
+      }
+    }
+  }
+  return [...seen].sort((a, b) => a - b);
+}
+
+interface Layout {
+  /** old position -> new position for each member */
+  mapping: Map<number, number>;
+  /** Members moved to the other side under their parent */
+  flips: number;
+}
+
+/** Every way to lay a linked group out on the board, keeping each link upper -> lower. */
+function groupLayouts(members: number[]): Layout[] {
+  const found: Layout[] = [];
+  const [top, ...rest] = members; // sorted, so parents always come before children
+  function place(i: number, mapping: Map<number, number>, flips: number) {
+    if (i === rest.length) return void found.push({ mapping: new Map(mapping), flips });
+    const p = rest[i];
+    const parentSpot = mapping.get(parentOf(p))!;
+    const sameSide = p % 2 === 1 ? 1 : 2;
+    for (const side of [sameSide, 3 - sameSide]) {
+      const q = 2 * parentSpot + side;
+      if (q >= WORDS || [...mapping.values()].includes(q)) continue;
+      mapping.set(p, q);
+      place(i + 1, mapping, flips + (side === sameSide ? 0 : 1));
+      mapping.delete(p);
+    }
+  }
+  for (let spot = 0; spot < WORDS; spot++) place(0, new Map([[top, spot]]), 0);
+  return found;
+}
+
+/** Costs for choosing between plans: move as few other groups as possible, then flip as little as possible */
+const MOVE_COST = 1000;
+const FLIP_COST = 100;
+/** Search steps allowed for one move (far more than any real board needs) */
+const PLAN_BUDGET = 50000;
+
+/**
+ * Where do the tiles go if the tile at `grabbed` (with its linked group) is dropped on `target`?
+ * The group lands with `grabbed` on `target`, keeping every link upper -> lower (a tile may switch
+ * sides under its parent). Any other linked groups in the way move too, to wherever they fit (and
+ * those they land on move in turn), preferring the spaces the dropped group left, so dropping on
+ * another group swaps the two. Loose tiles fill whatever is left. Returns old -> new position for
+ * every tile in a group that moves, or null if there's no way to fit everything. Tiles in `keep`
+ * (and their linked groups) stay where they are.
+ */
+export function planMove(links: Set<number>, grabbed: number, target: number, keep: number[] = []): Map<number, number> | null {
+  const mine = linkedGroup(links, grabbed);
+  const left = new Set(mine);
+  // The other linked groups (loose tiles just fill gaps, so they don't count)
+  const others: number[][] = [];
+  const groupAt = new Map<number, number>();
+  for (let p = 0; p < WORDS; p++) {
+    if (left.has(p) || groupAt.has(p)) continue;
+    const g = linkedGroup(links, p);
+    if (g.length < 2) continue;
+    g.forEach((q) => groupAt.set(q, others.length));
+    others.push(g);
+  }
+  // Each group's ways to move, cheapest first (filling the dropped group's old spaces is cheapest)
+  const options = others.map((g) =>
+    (g.some((p) => keep.includes(p)) ? [] : groupLayouts(g))
+      .filter(({ mapping }) => g.some((p) => mapping.get(p) !== p))
+      .map((l) => ({ ...l, cost: MOVE_COST + l.flips * FLIP_COST + [...l.mapping.values()].filter((q) => !left.has(q)).length }))
+      .sort((a, b) => a.cost - b.cost)
+  );
+
+  let best: Map<number, number> | null = null;
+  let bestCost = Infinity;
+  let steps = 0;
+
+  /** Places the groups in `pending` (which have to move) around the `taken` spaces */
+  function settle(mapping: Map<number, number>, taken: Set<number>, pending: number[], moved: Set<number>, cost: number) {
+    if (cost >= bestCost || ++steps > PLAN_BUDGET) return;
+    if (pending.length === 0) {
+      best = new Map(mapping);
+      bestCost = cost;
+      return;
+    }
+    const [g, ...restPending] = pending;
+    for (const option of options[g]) {
+      if (cost + option.cost >= bestCost) break; // sorted, so nothing later is cheaper
+      const spots = [...option.mapping.values()];
+      if (spots.some((q) => taken.has(q))) continue;
+      // Groups still sitting where this one lands have to move as well
+      const bumped = [...new Set(spots.map((q) => groupAt.get(q)).filter((h) => h !== undefined && h !== g && !moved.has(h) && !restPending.includes(h)))] as number[];
+      const nextMapping = new Map([...mapping, ...option.mapping]);
+      const nextMoved = new Set([...moved, ...bumped]);
+      settle(nextMapping, new Set([...taken, ...spots]), [...restPending, ...bumped], nextMoved, cost + option.cost);
+    }
+  }
+
+  for (const layout of groupLayouts(mine)) {
+    if (layout.mapping.get(grabbed) !== target) continue;
+    const spots = [...layout.mapping.values()];
+    if (spots.some((q) => keep.includes(q) && !left.has(q))) continue;
+    const bumped = [...new Set(spots.map((q) => groupAt.get(q)).filter((h) => h !== undefined))] as number[];
+    settle(layout.mapping, new Set([...spots, ...keep]), bumped, new Set(bumped), layout.flips * FLIP_COST);
+  }
+  return best;
+}
+
 // ---------- Solving ----------
 
 /**

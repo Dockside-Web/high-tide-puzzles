@@ -25,8 +25,8 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
   Interaction:
   - Tap or click a line to link the two words it joins (tap again to unlink).
   - Drag a word to move it, or tap a word and then tap where it should go. A linked word carries
-    its whole linked group, which can only land on its own spaces or unlinked words (those slide
-    into the spaces the group left). A word may switch to the other side under its parent if needed.
+    its whole linked group. Other linked groups in the way move too, to wherever they fit (the
+    spaces it left first), and unlinked words fill the gaps. A word may switch sides under its parent.
   - Check (the button under the board) tests every link: correct ones turn green and lock for good, wrong ones flash and come undone.
     There are 3 checks. After that the button becomes "Final check", which grades the whole
     board: all right is solved, anything wrong ends the game.
@@ -409,7 +409,7 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
 
 <script>
   import { forgetOldProgress, loadProgress, localDateKey, onFinishedElsewhere, saveProgress } from "../daily";
-  import { WORDS, acceptedLines, lineText, parentOf, puzzleFor, shuffledWords } from "./anchor";
+  import { WORDS, acceptedLines, lineText, linkedGroup, parentOf, planMove as planMoveFor, puzzleFor, shuffledWords } from "./anchor";
   import { ANCHOR_SETS } from "./sets";
 
   const CHECKS = 3;
@@ -725,12 +725,12 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
     });
 
     /**
-     * Puts the next pair of the answer (top down) under its upper word and locks the line, at the
-     * cost of a check. Works from wherever the upper word sits now, so it fits the player's own
-     * layout, and never moves a word that's part of a locked line. Free if nothing could be placed.
+     * Puts the next pair of the answer (top down) together and locks the line, at the cost of a
+     * check. Works from the player's own layout: the lower word (with its linked group) moves under
+     * the upper one, or the upper word's group moves over it, whichever disturbs the fewest words,
+     * and other linked groups in the way shift just as they do for a drag. Free if nothing fits.
      */
     function hint() {
-      const inLockedLine = (p: number) => locked.has(p) || locked.has(2 * p + 1) || locked.has(2 * p + 2);
       const answer = puzzleFor(slug, set, dateKey).words;
       for (let child = 1; child <= LAST; child++) {
         const upper = answer[parentOf(child)];
@@ -738,14 +738,25 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
         if ([...locked].some((c) => words[parentOf(c)] === upper && words[c] === lower)) continue;
         const from = words.indexOf(upper);
         const at = words.indexOf(lower);
-        const spots = [2 * from + 1, 2 * from + 2].filter((c) => c <= LAST);
-        // Already under it is best; otherwise swap it into a spot under it that isn't locked
-        const spot =
-          spots.find((c) => c === at) ??
-          (inLockedLine(at) ? undefined : spots.find((c) => !locked.has(c) && !locked.has(2 * c + 1) && !locked.has(2 * c + 2)));
-        if (spot === undefined) continue;
 
-        [words[spot], words[at]] = [words[at], words[spot]];
+        let plan: Map<number, number> | null = null;
+        if (parentOf(at) !== from) {
+          // Every way to bring them together; keep the ones that really end with lower under upper
+          const tries = [
+            ...[2 * from + 1, 2 * from + 2].filter((c) => c <= LAST).map((c) => planMove(at, c, [from])),
+            at > 0 ? planMove(from, parentOf(at), [at]) : null,
+          ].filter((m): m is Map<number, number> => {
+            if (!m) return false;
+            const next = movedWords(m);
+            const below = next.indexOf(lower);
+            return below > 0 && next[parentOf(below)] === upper;
+          });
+          if (tries.length === 0) continue;
+          plan = tries.reduce((a, b) => (b.size < a.size ? b : a));
+        }
+
+        if (plan) applyMove(plan);
+        const spot = words.indexOf(lower);
         links.add(spot);
         locked.add(spot);
         checksLeft--;
@@ -818,98 +829,28 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
 
     // ---------- Moving words ----------
     /** All positions joined to p by links (just [p] if it's a loose word). Sorted, so the group's root is first. */
-    function groupOf(p: number) {
-      const seen = new Set([p]);
-      const queue = [p];
-      while (queue.length) {
-        const q = queue.pop()!;
-        const neighbors = [2 * q + 1, 2 * q + 2].filter((c) => c <= LAST && links.has(c));
-        if (q > 0 && links.has(q)) neighbors.push(parentOf(q));
-        for (const n of neighbors) {
-          if (!seen.has(n)) {
-            seen.add(n);
-            queue.push(n);
-          }
-        }
-      }
-      return [...seen].sort((a, b) => a - b);
-    }
+    const groupOf = (p: number) => linkedGroup(links, p);
 
-    /**
-     * Where do the words go if the word at `grabbed` (with its linked group) is dropped on `target`?
-     * Links must stay parent -> child. The group may land on its own spaces or loose words; dropped
-     * on another linked group, the two groups trade places (the word dropped on goes to where
-     * `grabbed` was). A word may switch to the other side under its parent if needed; layouts with
-     * the fewest switches win. Returns old position -> new position for every word in a group that
-     * moves, or null if nothing fits.
-     */
-    function planMove(group: number[], grabbed: number, target: number) {
-      const other = group.includes(target) ? [] : groupOf(target);
-      const swapping = other.length > 1;
-      const movers = new Set([...group, ...(swapping ? other : [])]);
-      const isFree = (q: number) => q <= LAST && (movers.has(q) || groupOf(q).length === 1);
+    /** Where everything goes if the word at `grabbed` (with its linked group) is dropped on `target` (see anchor.ts) */
+    const planMove = (grabbed: number, target: number, keep: number[] = []) => planMoveFor(links, grabbed, target, keep);
 
-      /** Every way to lay out `members` with `anchor` on `spot`, keeping off the `taken` spaces */
-      function layouts(members: number[], anchor: number, spot: number, taken: Set<number>) {
-        const found: { mapping: Map<number, number>; flips: number }[] = [];
-        const [root, ...rest] = members; // sorted, so parents always come before children
-
-        // Place each member under its parent's new spot (same side first), backtracking through every option
-        function place(i: number, mapping: Map<number, number>, used: Set<number>, flips: number) {
-          if (i === rest.length) {
-            if (mapping.get(anchor) === spot) found.push({ mapping: new Map(mapping), flips });
-            return;
-          }
-          const p = rest[i];
-          const parentSpot = mapping.get(parentOf(p))!;
-          const sameSide = p % 2 === 1 ? 1 : 2;
-          for (const side of [sameSide, 3 - sameSide]) {
-            const q = 2 * parentSpot + side;
-            if (!isFree(q) || used.has(q) || taken.has(q)) continue;
-            mapping.set(p, q);
-            used.add(q);
-            place(i + 1, mapping, used, flips + (side === sameSide ? 0 : 1));
-            used.delete(q);
-            mapping.delete(p);
-          }
-        }
-
-        for (let newRoot = 0; newRoot <= LAST; newRoot++) {
-          if (!isFree(newRoot) || taken.has(newRoot)) continue;
-          place(0, new Map([[root, newRoot]]), new Set([newRoot]), 0);
-        }
-        return found;
-      }
-
-      let best: Map<number, number> | null = null;
-      let bestFlips = Infinity;
-      for (const mine of layouts(group, grabbed, target, new Set())) {
-        if (!swapping) {
-          if (mine.flips < bestFlips) [best, bestFlips] = [mine.mapping, mine.flips];
-          continue;
-        }
-        for (const theirs of layouts(other, target, grabbed, new Set(mine.mapping.values()))) {
-          if (mine.flips + theirs.flips >= bestFlips) continue;
-          best = new Map([...mine.mapping, ...theirs.mapping]);
-          bestFlips = mine.flips + theirs.flips;
-        }
-      }
-      return best;
+    /** The board after the words in `mapping` (old position -> new) move; loose words in the way fill the spaces left. */
+    function movedWords(mapping: Map<number, number>) {
+      const group = [...mapping.keys()].sort((a, b) => a - b);
+      const targets = new Set(mapping.values());
+      const vacated = group.filter((p) => !targets.has(p));
+      const displaced = [...targets].filter((p) => !mapping.has(p)).sort((a, b) => a - b);
+      const next = words.slice();
+      displaced.forEach((p, i) => (next[vacated[i]] = words[p]));
+      group.forEach((p) => (next[mapping.get(p)!] = words[p]));
+      return next;
     }
 
     /** Moves the words in `mapping` (old position -> new); loose words in the way fill the spaces left. */
     function applyMove(mapping: Map<number, number>) {
       remember();
       const group = [...mapping.keys()].sort((a, b) => a - b);
-      const targets = new Set(mapping.values());
-      const vacated = group.filter((p) => !targets.has(p));
-      const displaced = [...targets].filter((p) => !group.includes(p)).sort((a, b) => a - b);
-
-      const next = words.slice();
-      // Loose words that were in the way slide into the spaces the group left
-      displaced.forEach((p, i) => (next[vacated[i]] = words[p]));
-      group.forEach((p) => (next[mapping.get(p)!] = words[p]));
-      words = next;
+      words = movedWords(mapping);
 
       // The links move with their words (a member's link is to its parent, which moves with it)
       const groupLinks = group.filter((p) => links.has(p));
@@ -934,7 +875,7 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
       if (selected === null) selected = p;
       else if (groupOf(selected).includes(p)) selected = null;
       else {
-        const plan = planMove(groupOf(selected), selected, p);
+        const plan = planMove(selected, p);
         if (plan) {
           selected = null;
           applyMove(plan);
@@ -1054,7 +995,7 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
         if (target === lastTarget) return;
         lastTarget = target;
         clearPreview();
-        plan = target === null || target === grabbed ? null : planMove(group, grabbed, target);
+        plan = target === null || target === grabbed ? null : planMove(grabbed, target);
         plan?.forEach((q) => tileAt(q).classList.add("is-drop-target"));
       });
 
