@@ -28,8 +28,9 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
     its whole linked group. Other linked groups in the way move too, to wherever they fit (the
     spaces it left first), and unlinked words fill the gaps. A word may switch sides under its parent.
   - Check (the button under the board) tests every link: correct ones turn green and lock for good, wrong ones flash and come undone.
-    There are 3 checks. After that the button becomes "Final check", which grades the whole
-    board: all right is solved, anything wrong ends the game.
+    There are 3 checks, and the last one is the "Final check" (one tap, no confirm), which grades the
+    whole board: all right is solved, anything wrong ends the game. Hints can't use the last check. A failed game then offers "Show answer"
+    (also the toolbar's Reveal), which lays out the answer with the player's right lines still green.
   Keyboard: arrow keys move between words, Space or Enter picks a word up and puts it down,
   Shift+Left/Right links the word to the one below on that side, Shift+Up to the one above.
   The board, links, checks left and result are saved per day, so a refresh picks up where it was.
@@ -62,7 +63,7 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
 <!--
   These are the only puzzles that don't finish by themselves, so Check sits right under the board
   rather than in the toolbar: outlined while there's nothing new to check, filled in the puzzle's
-  color once there is, with a dot for each check left. After the 3 checks it becomes the final check.
+  color once there is, with a dot for each check left. With one check left it turns coral: that one is the final check.
 -->
 <div class="anchor__check-row">
   <button type="button" class="anchor__check" data-check-button disabled>
@@ -114,6 +115,11 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
     color: rgb(var(--on-color));
   }
 
+  /* After a failed final check it offers the answer instead, outlined */
+  .anchor__check.is-show-answer .anchor__dots {
+    display: none;
+  }
+
   /* Once the game is over it steps aside (keeping its space, so nothing jumps) */
   .anchor__check.is-hidden {
     visibility: hidden;
@@ -140,10 +146,6 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
 
   .anchor__dots i.is-spent {
     opacity: 0.25;
-  }
-
-  .anchor__check.is-final .anchor__dots {
-    display: none;
   }
 
   /* A small pop the moment there's something to check */
@@ -284,6 +286,12 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
   /* Final check failed: wrong lines draw in coral and stay */
   [data-edge-group].is-failed .anchor__edge-fill {
     stroke: rgb(var(--coral-strong));
+  }
+
+  /* Answer shown after a failed game: the lines the player missed, in plain ink */
+  [data-edge-group].is-answer .anchor__edge-fill {
+    stroke-dashoffset: 0;
+    stroke: rgb(var(--ink) / 0.55);
   }
 
   /* No drawing when a saved board first appears */
@@ -429,6 +437,8 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
     checksLeft: number;
     seconds: number;
     status: Status;
+    /** A failed game whose answer has been shown (the board then holds the answer) */
+    answerShown?: boolean;
   }
 
   const rowOf = (p: number) => Math.floor(Math.log2(p + 1));
@@ -455,6 +465,7 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
     const wrongPairs = new Set<string>();
     let checksLeft = CHECKS;
     let status: Status = "playing";
+    let answerShown = false;
     let seconds = 0;
     /** Position picked up by a tap, waiting for a tap on where it goes */
     let selected: number | null = null;
@@ -478,6 +489,7 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
         checksLeft,
         seconds,
         status,
+        answerShown,
       } satisfies SavedGame);
     }
 
@@ -591,7 +603,8 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
       });
       edgeGroups.forEach((group) => {
         const child = Number(group.dataset.child);
-        group.classList.toggle("is-active", links.has(child) && !locked.has(child));
+        group.classList.toggle("is-active", links.has(child) && !locked.has(child) && !answerShown);
+        group.classList.toggle("is-answer", answerShown && !locked.has(child));
         group.classList.toggle("is-locked", locked.has(child));
         group.classList.toggle("is-known-wrong", knownWrong(child) && !locked.has(child));
         group.classList.toggle("is-failed", status === "failed" && !isRight(child));
@@ -606,7 +619,13 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
     function updateToolbar() {
       window.dispatchEvent(
         new CustomEvent("puzzle:toolbar-update", {
-          detail: { action: "hint", confirm: "Uses a check", disabled: over() || checksLeft === 0 },
+          detail: { action: "hint", confirm: "Uses a check", disabled: over() || checksLeft <= 1 },
+        })
+      );
+      // Reveal still works after a failed game (it shows the answer), but not once it's shown
+      window.dispatchEvent(
+        new CustomEvent("puzzle:toolbar-update", {
+          detail: { action: "reveal", disabled: status === "solved" || status === "revealed" || answerShown },
         })
       );
     }
@@ -614,14 +633,20 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
     const checkButton = root.parentElement!.querySelector<HTMLButtonElement>("[data-check-button]")!;
     const checkLabel = checkButton.querySelector<HTMLElement>("[data-check-label]")!;
     const checkDots = Array.from(checkButton.querySelectorAll("i"));
-    /** The final check asks for a second tap first (it can end the game) */
-    let confirmingFinal = false;
-    let confirmTimer = 0;
-
     /** Ready (filled) when there are new links to check, or always for the final check */
     function updateCheckButton() {
       const pending = [...links].some((child) => !locked.has(child));
-      const final = checksLeft === 0;
+      // The last check is the final one (saves from before this change may hold 0)
+      const final = checksLeft <= 1;
+      const offerAnswer = status === "failed" && !answerShown;
+      checkButton.classList.toggle("is-show-answer", offerAnswer);
+      if (offerAnswer) {
+        checkButton.classList.remove("is-ready", "is-final", "is-hidden");
+        checkButton.disabled = false;
+        checkLabel.textContent = "Show answer";
+        checkButton.setAttribute("aria-label", "Show answer");
+        return;
+      }
       const ready = !over() && (final || pending);
       if (ready && !checkButton.classList.contains("is-ready")) {
         checkButton.classList.remove("is-popping");
@@ -634,16 +659,14 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
       checkButton.classList.toggle("is-hidden", over());
       checkButton.disabled = !ready;
       checkLabel.textContent = final
-        ? confirmingFinal
-          ? "Tap again to submit"
-          : "Final check"
+        ? "Final check"
         : pending
           ? "Check"
           : `Link ${set.tile}s to check`;
       checkDots.forEach((dot, i) => dot.classList.toggle("is-spent", i >= checksLeft));
       checkButton.setAttribute(
         "aria-label",
-        final ? checkLabel.textContent : `${checkLabel.textContent}, ${checksLeft} of ${CHECKS} checks left`
+        final ? "Final check, grades the whole board" : `${checkLabel.textContent}, ${checksLeft} of ${CHECKS} checks left`
       );
     }
 
@@ -697,8 +720,9 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
       save();
     }
 
-    /** After the 3 checks: the whole board has to be right, linked or not */
+    /** The last of the 3 checks: the whole board has to be right, linked or not */
     function finalCheck() {
+      checksLeft = 0;
       for (let child = 1; child <= LAST; child++) {
         if (!isRight(child)) continue;
         links.add(child);
@@ -707,20 +731,30 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
       endGame(locked.size === LAST);
     }
 
-    checkButton.addEventListener("click", () => {
-      if (over()) return;
-      if (checksLeft > 0) return check();
-      window.clearTimeout(confirmTimer);
-      if (!confirmingFinal) {
-        confirmingFinal = true;
-        updateCheckButton();
-        confirmTimer = window.setTimeout(() => {
-          confirmingFinal = false;
-          updateCheckButton();
-        }, 3000);
-        return;
+    /**
+     * After a failed game: lays out the answer. Lines the player had right stay green (matched by
+     * their words, wherever they were on the board); the rest draw in plain ink. Still a failed game.
+     */
+    function showAnswer() {
+      if (status !== "failed" || answerShown) return;
+      const rightPairs = new Set([...locked].map(pairAt));
+      words = puzzleFor(slug, set, dateKey).words.slice();
+      links.clear();
+      locked.clear();
+      for (let child = 1; child <= LAST; child++) {
+        links.add(child);
+        if (rightPairs.has(pairAt(child))) locked.add(child);
       }
-      confirmingFinal = false;
+      answerShown = true;
+      render();
+      updateToolbar();
+      save();
+    }
+
+    checkButton.addEventListener("click", () => {
+      if (status === "failed") return showAnswer();
+      if (over()) return;
+      if (checksLeft > 1) return check();
       finalCheck();
     });
 
@@ -771,11 +805,13 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
     }
 
     window.addEventListener("puzzle:hint", () => {
-      if (!over() && checksLeft > 0) hint();
+      // Never the last check: that one is the final check
+      if (!over() && checksLeft > 1) hint();
     });
 
     // The whole answer drawn in, then the board locks (no celebration)
     window.addEventListener("puzzle:reveal", () => {
+      if (status === "failed") return showAnswer();
       if (over()) return;
       words = puzzleFor(slug, set, dateKey).words.slice();
       for (let child = 1; child <= LAST; child++) {
@@ -804,6 +840,7 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
       wrongPairs.clear();
       checksLeft = CHECKS;
       status = "playing";
+      answerShown = false;
       selected = null;
       undoStack = [];
       render();
@@ -1077,6 +1114,7 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
         saved.wrong?.forEach((pair) => wrongPairs.add(pair));
         checksLeft = saved.checksLeft;
         status = saved.status;
+        answerShown = saved.status === "failed" && !!saved.answerShown;
         seconds = saved.seconds;
         window.dispatchEvent(
           new CustomEvent("puzzle:timer-set", { detail: { seconds, running: status === "playing" } })
@@ -1085,6 +1123,7 @@ const edges = positions.slice(1).map((child) => ({ parent: parentOf(child), chil
         words = shuffledWords(set, puzzle, `${slug}:${dateKey}`);
         checksLeft = CHECKS;
         status = "playing";
+        answerShown = false;
         seconds = 0;
       }
       render();

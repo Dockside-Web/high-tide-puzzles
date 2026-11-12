@@ -13,7 +13,7 @@ export function anchorConfig(game: Pick<PuzzleConfig, "slug" | "name" | "icon" |
     ...game,
     component: AnchorBoard,
     color: "sun",
-    instructions: `Arrange the ${tile}s so every line, read top to bottom, makes a common ${makes}. Tap a line to link a pair you’re sure of. You get 3 checks, then a final check.`,
+    instructions: `Arrange the ${tile}s so every line, read top to bottom, makes a common ${makes}. Tap a line to link a pair you’re sure of. You get 3 checks; the last one grades the whole board.`,
     helpExamples: AnchorHelp,
     // Check isn't here: it's a button of its own under the board (see AnchorBoard.astro)
     toolbar: {
